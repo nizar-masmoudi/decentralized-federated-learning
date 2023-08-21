@@ -4,6 +4,7 @@
 ```
 .
 ├── client/
+│   ├── models/               # Contains different model architectures for testing 
 │   ├── trainer/
 │   │   └── trainer.py        # Contains local training script 
 │   ├── aggregator/
