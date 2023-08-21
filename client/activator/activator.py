@@ -1,0 +1,2 @@
+class Activator:
+  pass
