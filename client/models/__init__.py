@@ -1,0 +1,1 @@
+from client.models.convnet import ConvNet
