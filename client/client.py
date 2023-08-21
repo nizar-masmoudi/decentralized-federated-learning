@@ -20,12 +20,12 @@ class Client:
     # Setup model
     Model = getattr(__import__('client.models', fromlist = [self.config['model']]), self.config['model'])
     self.model = Model()
-    logger.debug(f'{Model.__name__} model initialized')
+    logger.debug(f'{Model.__name__} model initialized', extra = {'client': self._id})
     
     # Setup datasets
     self.train_set = DataSample(MNIST(root = 'data', train = True, transform = ToTensor(), download = True), 10000)
     self.test_set = MNIST(root = 'data', train = False, transform = ToTensor(), download = True)
-    logger.debug(f'Dataset initialized with {len(self.train_set)} train images and {len(self.test_set)} test images')
+    logger.debug(f'Dataset initialized with {len(self.train_set)} train images and {len(self.test_set)} test images', extra = {'client': self._id})
     
     self.location = None
     

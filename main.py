@@ -2,8 +2,19 @@ import argparse
 import yaml
 from client import Client
 import logging
+
+class Filter(logging.Filter):
+  def filter(self, record):
+    record.source = f'{record.name}.{record.funcName}'
+    if not hasattr(record, 'client'):
+      setattr(record, 'client', -1)
+    return True
   
-logging.basicConfig(level = logging.DEBUG, format = '%(levelname)-5s | %(name)-25s | %(funcName)-10s | %(message)s')
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter('%(levelname)-5s | Client %(client)-2s | %(source)-35s | %(message)s'))
+handler.addFilter(Filter())
+
+logging.basicConfig(level = logging.DEBUG, handlers = [handler])
 
 def main():
   # TODO: Write description

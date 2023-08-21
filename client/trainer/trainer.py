@@ -19,20 +19,20 @@ class Trainer:
     # Setup optimizer
     Optimizer = getattr(__import__('torch.optim', fromlist = [self.config['optimizer']['class']]), self.config['optimizer']['class'])
     self.optimizer = Optimizer(self.model.parameters(), **{k: v for k, v in self.config['optimizer'].items() if k != 'class'})
-    logger.debug(f'{Optimizer.__name__} optimizer initialized with params ' + ', '.join([f'{k} = {v}' for k, v in self.config['optimizer'].items() if k != 'class']))
+    logger.debug(f'{Optimizer.__name__} optimizer initialized with params ' + ', '.join([f'{k} = {v}' for k, v in self.config['optimizer'].items() if k != 'class']), extra = {'client': self._id})
     
     # Setup Loss function
     Loss = getattr(__import__('torch.nn', fromlist = [self.config['loss_fn']]), self.config['loss_fn'])
     self.loss_fn = Loss()
-    logger.debug(f'{Loss.__name__} function initialized')
+    logger.debug(f'{Loss.__name__} function initialized', extra = {'client': self._id})
     
     # Setup device
     self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    logger.debug('CUDA available. Device set to CUDA' if torch.cuda.is_available() else 'CUDA not available. Device set to CPU')
+    logger.debug('CUDA available. Device set to CUDA' if torch.cuda.is_available() else 'CUDA not available. Device set to CPU', extra = {'client': self._id})
     
     # Split data for training and validation
     self.train_set, self.valid_set = Trainer.train_valid_split(self.train_set, valid_split = .1)
-    logger.debug(f'Training and validation splits setup with lengths {len(self.train_set)} and {len(self.valid_set)} respectively')
+    logger.debug(f'Training and validation splits setup with lengths {len(self.train_set)} and {len(self.valid_set)} respectively', extra = {'client': self._id})
     
     # Prepare dataloaders
     self.train_dl = DeviceDataLoader(DataLoader(self.train_set, batch_size = self.config['batch_size'], shuffle = True), self.device)
@@ -61,7 +61,7 @@ class Trainer:
       self.model.eval()
       avg_vloss = self.validate(self.valid_dl)
       # Gather and report
-      logger.info('Epoch [{:>2}/{:>2}] - Training loss = {:.3f} - Validation loss = {:.3f}'.format(epoch, self.config['n_epochs'], avg_tloss, avg_vloss))
+      logger.info('Epoch [{:>2}/{:>2}] - Training loss = {:.3f} - Validation loss = {:.3f}'.format(epoch, self.config['n_epochs'], avg_tloss, avg_vloss), extra = {'client': self._id})
   
   def validate(self, valid_dl: DeviceDataLoader):
     running_vloss = 0.
