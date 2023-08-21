@@ -23,9 +23,9 @@ class Client:
     logger.debug(f'{Model.__name__} model initialized', extra = {'client': self._id})
     
     # Setup datasets
-    self.train_set = DataSample(MNIST(root = 'data', train = True, transform = ToTensor(), download = True), 10000)
+    self.train_set = DataSample(MNIST(root = 'data', train = True, transform = ToTensor(), download = True), 20000)
     self.test_set = MNIST(root = 'data', train = False, transform = ToTensor(), download = True)
-    logger.debug(f'Dataset initialized with {len(self.train_set)} train images and {len(self.test_set)} test images', extra = {'client': self._id})
+    logger.debug(f'{self.test_set.__class__.__name__} dataset initialized', extra = {'client': self._id})
     
     self.location = None
     

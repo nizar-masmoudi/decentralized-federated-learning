@@ -19,7 +19,7 @@ class Trainer:
     # Setup optimizer
     Optimizer = getattr(__import__('torch.optim', fromlist = [self.config['optimizer']['class']]), self.config['optimizer']['class'])
     self.optimizer = Optimizer(self.model.parameters(), **{k: v for k, v in self.config['optimizer'].items() if k != 'class'})
-    logger.debug(f'{Optimizer.__name__} optimizer initialized with params ' + ', '.join([f'{k} = {v}' for k, v in self.config['optimizer'].items() if k != 'class']), extra = {'client': self._id})
+    logger.debug(f'{Optimizer.__name__} optimizer initialized', extra = {'client': self._id, 'vars': {k: v for k, v in self.config['optimizer'].items() if k != 'class'}})
     
     # Setup Loss function
     Loss = getattr(__import__('torch.nn', fromlist = [self.config['loss_fn']]), self.config['loss_fn'])
@@ -32,7 +32,7 @@ class Trainer:
     
     # Split data for training and validation
     self.train_set, self.valid_set = Trainer.train_valid_split(self.train_set, valid_split = .1)
-    logger.debug(f'Training and validation splits setup with lengths {len(self.train_set)} and {len(self.valid_set)} respectively', extra = {'client': self._id})
+    logger.debug(f'Train set split into training and validation subsets', extra = {'client': self._id})
     
     # Prepare dataloaders
     self.train_dl = DeviceDataLoader(DataLoader(self.train_set, batch_size = self.config['batch_size'], shuffle = True), self.device)
