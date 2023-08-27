@@ -21,9 +21,9 @@ client:
   # Selector config
   selector:
     policy:
-      name: full
+      name: Full
 
   # Activator config
   activator:
     policy:
-      name: full
+      name: Full

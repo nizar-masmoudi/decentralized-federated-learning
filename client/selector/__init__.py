@@ -1,1 +1,1 @@
-from client.selector.selector import Selector
+from client.selector.selector import PeerSelector
