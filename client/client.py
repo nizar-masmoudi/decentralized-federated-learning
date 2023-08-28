@@ -6,6 +6,7 @@ from functools import partial
 from typing import List, Dict, Callable
 
 import torch.nn as nn
+import torch.optim
 from torch.utils.data import Dataset
 
 from client.activator import Activator
@@ -13,7 +14,10 @@ from client.aggregator import Aggregator
 from client.dataset.utils import DataChunk
 from client.selector import PeerSelector
 from client.trainer import Trainer
+from client.loggers.console import ConsoleLogger
+from client.loggers.wandb import WandbLogger
 
+logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)
 
 
@@ -39,7 +43,7 @@ class Client:
                  train_ds: DataChunk,
                  test_ds: Dataset,
                  model: nn.Module,
-                 optimizer: partial,
+                 optimizer: torch.optim.Optimizer,
                  batch_size: int,
                  loss_fn: Callable,
                  n_epochs: int,
@@ -49,10 +53,11 @@ class Client:
                  selection_policy: SelectionPolicy,
                  # Activator args
                  activation_policy: ActivationPolicy,
+                 wandb_logger: WandbLogger,
                  ) -> None:
-        self.id = next(Client.inc)  # Auto-increment ID
+        self.client_id = next(Client.inc)  # Auto-increment ID
         self.model = model
-        self.optimizer = optimizer(model.parameters())
+        self.optimizer = optimizer
         self.train_ds = train_ds
         self.test_ds = test_ds
         self.batch_size = batch_size
@@ -62,27 +67,29 @@ class Client:
         self.is_active = False
         self.neighbors = []
         self.peers = []
+        self.wandb_logger = wandb_logger
 
         # Modules
         self.trainer = Trainer(
-            self.id,
-            self.train_ds,
-            self.test_ds,
-            self.model,
-            self.optimizer,
-            self.batch_size,
-            self.loss_fn,
-            self.n_epochs,
+            client_id=self.client_id,
+            train_ds=self.train_ds,
+            test_ds=self.test_ds,
+            model=self.model,
+            optimizer=self.optimizer,
+            batch_size=self.batch_size,
+            loss_fn=self.loss_fn,
+            n_epochs=self.n_epochs,
+            wandb_logger=self.wandb_logger
         )
-        self.aggregator = Aggregator(self.id, aggregation_policy)
-        self.selector = PeerSelector(self.id, selection_policy)
-        self.activator = Activator(self.id, activation_policy)
+        self.aggregator = Aggregator(client_id=self.client_id, policy=aggregation_policy)
+        self.selector = PeerSelector(client_id=self.client_id, policy=selection_policy)
+        self.activator = Activator(client_id=self.client_id, policy=activation_policy)
 
     def __eq__(self, other: 'Client') -> bool:
-        return self.id == other.id
+        return self.client_id == other.client_id
 
     def __repr__(self) -> str:
-        return f'Client{self.id}'
+        return f'Client{self.client_id}'
 
     def lookup(self, clients: List['Client'], max_dist: float) -> List['Client']:
         """Lookup clients within a certain distance (communication reach).
@@ -97,7 +104,7 @@ class Client:
         neighbors = [client for client in clients if (client != self) and Client.distance(self, client) < max_dist]
         self.neighbors = neighbors
         logger.info('Detected neighbors: {}'.format(', '.join(str(neighbor) for neighbor in self.neighbors)),
-                    extra={'client': self.id})
+                    extra={'client': self.client_id})
         return neighbors
 
     def train(self):

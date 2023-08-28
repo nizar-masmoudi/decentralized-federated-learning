@@ -2,12 +2,14 @@ from enum import IntEnum
 import random
 from typing import List
 import logging
+from client.loggers.console import ConsoleLogger
 
 
 class Client:
     pass
 
 
+logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)
 
 
@@ -17,8 +19,8 @@ class PeerSelector:
         FULL = 1
         EFFICIENT = 2
 
-    def __init__(self, id: int, policy: Policy) -> None:
-        self.id = id
+    def __init__(self, client_id: int, policy: Policy) -> None:
+        self.client_id = client_id
         self.policy = policy
 
     def select_peers(self, neighbors: List[Client], k: int = None) -> List[Client]:
@@ -37,18 +39,15 @@ class PeerSelector:
     """
         if self.policy == PeerSelector.Policy.FULL:
             peers = PeerSelector.full_selection(neighbors)
-            logger.info('Selected peers: {}'.format(', '.join([str(peer) for peer in peers])),
-                        extra={'client': self.id})
+            logger.info('Selected peers: {}'.format(', '.join([str(peer) for peer in peers])), extra={'client': self.client_id})
             return peers
         elif self.policy == PeerSelector.Policy.RANDOM:
             peers = PeerSelector.random_selection(neighbors, k=k)
-            logger.info('Selected peers: {}'.format(', '.join([str(peer) for peer in peers])),
-                        extra={'client': self.id})
+            logger.info('Selected peers: {}'.format(', '.join([str(peer) for peer in peers])), extra={'client': self.client_id})
             return peers
         elif self.policy == PeerSelector.Policy.EFFICIENT:
             peers = PeerSelector.efficient_selection(neighbors)
-            logger.info('Selected peers: {}'.format(', '.join([str(peer) for peer in peers])),
-                        extra={'client': self.id})
+            logger.info('Selected peers: {}'.format(', '.join([str(peer) for peer in peers])), extra={'client': self.client_id})
             return peers
         else:
             raise ValueError(f'Policy {self.policy} not recognized!')

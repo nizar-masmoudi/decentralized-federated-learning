@@ -1,7 +1,9 @@
 import random
 from enum import IntEnum
 import logging
+from client.loggers.console import ConsoleLogger
 
+logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)
 
 
@@ -11,8 +13,8 @@ class Activator:
         FULL = 1
         EFFICIENT = 2
 
-    def __init__(self, id: int, policy: Policy) -> None:
-        self.id = id
+    def __init__(self, client_id: int, policy: Policy) -> None:
+        self.client_id = client_id
         self.policy = policy
 
     def activate(self, p: float = None) -> bool:
@@ -29,15 +31,15 @@ class Activator:
     """
         if self.policy == Activator.Policy.FULL:
             is_active = Activator.full_activation()
-            logger.info('Client set to {}'.format('active.' if is_active else 'inactive'), extra={'client': self.id})
+            logger.info('Client set to {}'.format('active' if is_active else 'inactive'), extra={'client': self.client_id})
             return is_active
         elif self.policy == Activator.Policy.RANDOM:
             is_active = Activator.random_activation(p=p)
-            logger.info('Client set to {}'.format('active.' if is_active else 'inactive'), extra={'client': self.id})
+            logger.info('Client set to {}'.format('active' if is_active else 'inactive'), extra={'client': self.client_id})
             return is_active
         elif self.policy == Activator.Policy.EFFICIENT:
             is_active = Activator.efficient_activation()
-            logger.info('Client set to {}'.format('active.' if is_active else 'inactive'), extra={'client': self.id})
+            logger.info('Client set to {}'.format('active' if is_active else 'inactive'), extra={'client': self.client_id})
             return is_active
         else:
             raise ValueError(f'Policy {self.policy} not recognized!')

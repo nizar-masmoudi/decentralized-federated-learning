@@ -7,13 +7,15 @@ from client.dataset.utils import DataChunk
 import logging
 from torch.optim import Optimizer
 from typing import Callable
+from client.loggers import ConsoleLogger, WandbLogger
 
+logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)
 
 
 class Trainer:
     def __init__(self,
-                 id: int,
+                 client_id: int,
                  train_ds: DataChunk,
                  test_ds: Dataset,
                  model: nn.Module,
@@ -21,8 +23,9 @@ class Trainer:
                  batch_size: int,
                  loss_fn: Callable,
                  n_epochs: int,
+                 wandb_logger: WandbLogger
                  ) -> None:
-        self.id = id
+        self.client_id = client_id
         self.model = model
         self.optimizer = optimizer
         self.train_ds = train_ds
@@ -30,15 +33,16 @@ class Trainer:
         self.batch_size = batch_size
         self.loss_fn = loss_fn
         self.n_epochs = n_epochs
+        self.wandb_logger = wandb_logger
 
         # Setup device
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-        logger.debug('CUDA available. Device set to CUDA.' if torch.cuda.is_available() else 'CUDA not available. Device set to CPU', extra={'client': self.id})
+        logger.debug('CUDA available. Device set to CUDA.' if torch.cuda.is_available() else 'CUDA not available. Device set to CPU', extra={'client': self.client_id})
 
         # Split data for training and validation
         self.train_ds, self.valid_ds = Trainer.train_valid_split(self.train_ds, valid_split=.1)
-        logger.debug(f'Length of training subset: {len(self.train_ds)}', extra={'client': self.id})
-        logger.debug(f'Length of validation subset: {len(self.valid_ds)}', extra={'client': self.id})
+        logger.debug(f'Length of training subset: {len(self.train_ds)}', extra={'client': self.client_id})
+        logger.debug(f'Length of validation subset: {len(self.valid_ds)}', extra={'client': self.client_id})
 
         # Prepare dataloaders
         self.train_dl = DeviceDataLoader(DataLoader(self.train_ds, batch_size=self.batch_size, shuffle=True), self.device)
@@ -67,7 +71,8 @@ class Trainer:
             self.model.eval()
             avg_vloss = self.validate(self.valid_dl)
             # Gather and report
-            logger.info('Epoch [{:>2}/{:>2}] - Training loss = {:.3f} - Validation loss = {:.3f}'.format(epoch, self.n_epochs, avg_tloss, avg_vloss), extra={'client': self.id})
+            logger.info('Epoch [{:>2}/{:>2}] - Training loss = {:.3f} - Validation loss = {:.3f}'.format(epoch, self.n_epochs, avg_tloss, avg_vloss), extra={'client': self.client_id})
+            self.wandb_logger.log_metrics(metric_dict={f'Training loss - Client {self.client_id}': avg_tloss, f'Validation loss - Client {self.client_id}': avg_vloss}, epoch=epoch, client_id=self.client_id)
 
     def validate(self, valid_dl: DeviceDataLoader):
         running_vloss = 0.

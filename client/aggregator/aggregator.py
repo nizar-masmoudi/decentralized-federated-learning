@@ -2,7 +2,9 @@ from enum import IntEnum
 from typing import List, Dict
 import logging
 import torch
+from client.loggers.console import ConsoleLogger
 
+logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)
 
 
@@ -11,15 +13,14 @@ class Aggregator:
         FEDAVG = 0
         MIXING = 1
 
-    def __init__(self, id: int, policy: Policy) -> None:
-        self.id = id
+    def __init__(self, client_id: int, policy: Policy) -> None:
+        self.client_id = client_id
         self.policy = policy
 
     def aggregate(self, state_dicts: List[Dict]) -> Dict:
         if self.policy == Aggregator.Policy.FEDAVG:
             agg_state = Aggregator.fedavg(state_dicts)
-            logger.info(f'{len(state_dicts)} states of {len(agg_state)} layers were aggregated',
-                        extra={'client': self.id})
+            logger.info(f'{len(state_dicts)} states of {len(agg_state)} layers were aggregated', extra={'client': self.client_id})
             return agg_state
 
     @staticmethod
