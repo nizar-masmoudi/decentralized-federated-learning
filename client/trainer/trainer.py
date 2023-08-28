@@ -3,41 +3,46 @@ import torch
 from client.dataset.loaders import DeviceDataLoader
 from torch.utils.data import DataLoader, Dataset, random_split
 import torch.nn as nn
-from client.dataset.sampler import DataSample
+from client.dataset.utils import DataChunk
 import logging
+from torch.optim import Optimizer
+from typing import Callable
 
 logger = logging.getLogger(__name__)
 
 class Trainer:
-  def __init__(self, id: int, train_set: DataSample, test_set: Dataset, model: nn.Module, config: dict) -> None:
-    self._id = id
-    self.train_set = train_set
-    self.test_set = test_set
+  def __init__(self, 
+    id: int, 
+    train_ds: DataChunk, 
+    test_ds: Dataset, 
+    model: nn.Module,
+    optimizer: Optimizer,
+    batch_size: int,
+    loss_fn: Callable,
+    n_epochs: int,
+  ) -> None:
+    self.id = id
     self.model = model
-    self.config = config
-    
-    # Setup optimizer
-    Optimizer = getattr(__import__('torch.optim', fromlist = [self.config['optimizer']['class']]), self.config['optimizer']['class'])
-    self.optimizer = Optimizer(self.model.parameters(), **{k: v for k, v in self.config['optimizer'].items() if k != 'class'})
-    logger.debug(f'{Optimizer.__name__} optimizer initialized', extra = {'client': self._id, 'vars': {k: v for k, v in self.config['optimizer'].items() if k != 'class'}})
-    
-    # Setup Loss function
-    Loss = getattr(__import__('torch.nn', fromlist = [self.config['loss_fn']]), self.config['loss_fn'])
-    self.loss_fn = Loss()
-    logger.debug(f'{Loss.__name__} function initialized', extra = {'client': self._id})
+    self.optimizer = optimizer
+    self.train_ds = train_ds
+    self.test_ds = test_ds
+    self.batch_size = batch_size
+    self.loss_fn = loss_fn
+    self.n_epochs = n_epochs
     
     # Setup device
     self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    logger.debug('CUDA available. Device set to CUDA' if torch.cuda.is_available() else 'CUDA not available. Device set to CPU', extra = {'client': self._id})
+    logger.debug('CUDA available. Device set to CUDA.' if torch.cuda.is_available() else 'CUDA not available. Device set to CPU.', extra = {'client': self.id})
     
     # Split data for training and validation
-    self.train_set, self.valid_set = Trainer.train_valid_split(self.train_set, valid_split = .1)
-    logger.debug(f'Train set split into training and validation subsets', extra = {'client': self._id})
+    self.train_ds, self.valid_ds = Trainer.train_valid_split(self.train_ds, valid_split = .1)
+    logger.debug(f'Length of training subset: {len(self.train_ds)}', extra = {'client': self.id})
+    logger.debug(f'Length of validation subset: {len(self.valid_ds)}', extra = {'client': self.id})
     
     # Prepare dataloaders
-    self.train_dl = DeviceDataLoader(DataLoader(self.train_set, batch_size = self.config['batch_size'], shuffle = True), self.device)
-    self.valid_dl = DeviceDataLoader(DataLoader(self.valid_set, batch_size = self.config['batch_size'], shuffle = True), self.device)
-    self.test_dl = DeviceDataLoader(DataLoader(self.test_set, batch_size = self.config['batch_size']), self.device)
+    self.train_dl = DeviceDataLoader(DataLoader(self.train_ds, batch_size = self.batch_size, shuffle = True), self.device)
+    self.valid_dl = DeviceDataLoader(DataLoader(self.valid_ds, batch_size = self.batch_size, shuffle = True), self.device)
+    self.test_dl = DeviceDataLoader(DataLoader(self.test_ds, batch_size = self.batch_size), self.device)
     
   def loss_batch(self, batch: tuple):
     inputs, labels = batch
@@ -49,7 +54,7 @@ class Trainer:
     return loss.item()/len(batch) # Average loss
   
   def train(self):
-    for epoch in range(1, self.config['n_epochs'] + 1):
+    for epoch in range(1, self.n_epochs + 1):
       # Training (1 epoch)
       running_tloss = 0.
       self.model.train()
@@ -61,7 +66,7 @@ class Trainer:
       self.model.eval()
       avg_vloss = self.validate(self.valid_dl)
       # Gather and report
-      logger.info('Epoch [{:>2}/{:>2}] - Training loss = {:.3f} - Validation loss = {:.3f}'.format(epoch, self.config['n_epochs'], avg_tloss, avg_vloss), extra = {'client': self._id})
+      logger.info('Epoch [{:>2}/{:>2}] - Training loss = {:.3f} - Validation loss = {:.3f}'.format(epoch, self.n_epochs, avg_tloss, avg_vloss), extra = {'client': self.id})
   
   def validate(self, valid_dl: DeviceDataLoader):
     running_vloss = 0.

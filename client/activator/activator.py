@@ -1,14 +1,17 @@
 import random
-from enum import Enum
+from enum import IntEnum
 import logging
 
+logger = logging.getLogger(__name__)
+
 class Activator:
-  class Policy(str, Enum):
-    RANDOM = 'Random'
-    FULL = 'Full'
-    EFFICIENT = 'Efficient'
+  class Policy(IntEnum):
+    RANDOM = 0
+    FULL = 1
+    EFFICIENT = 2
   
-  def __init__(self, policy: Policy) -> None:
+  def __init__(self, id: int, policy: Policy) -> None:
+    self.id = id
     self.policy = policy
   
   def activate(self, p: float = None) -> bool:
@@ -24,11 +27,17 @@ class Activator:
         bool: Indicates whether client is active or not.
     """
     if self.policy == Activator.Policy.FULL:
-      return Activator.full_activation()
+      is_active = Activator.full_activation()
+      logger.info('Client set to {}'.format('active.' if is_active else 'inactive.'), extra = {'client': self.id})
+      return is_active
     elif self.policy == Activator.Policy.RANDOM:
-      return Activator.random_activation(p = p)
+      is_active = Activator.random_activation(p = p)
+      logger.info('Client set to {}'.format('active.' if is_active else 'inactive.'), extra = {'client': self.id})
+      return is_active
     elif self.policy == Activator.Policy.EFFICIENT:
-      return Activator.efficient_activation()
+      is_active = Activator.efficient_activation()
+      logger.info('Client set to {}'.format('active.' if is_active else 'inactive.'), extra = {'client': self.id})
+      return is_active
     else:
       raise ValueError(f'Policy {self.policy} not recognized!')
   

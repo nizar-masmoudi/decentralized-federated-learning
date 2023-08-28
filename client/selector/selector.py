@@ -1,17 +1,20 @@
-from enum import Enum
+from enum import IntEnum
 import random
 from typing import Sequence
-
+import logging
 class Client:
   pass
 
-class PeerSelector:
-  class Policy(str, Enum):
-    RANDOM = 'Random'
-    FULL = 'Full'
-    EFFICIENT = 'Efficient'
+logger = logging.getLogger(__name__)
 
-  def __init__(self, policy: Policy) -> None:
+class PeerSelector:
+  class Policy(IntEnum):
+    RANDOM = 0
+    FULL = 1
+    EFFICIENT = 2
+
+  def __init__(self, id: int, policy: Policy) -> None:
+    self.id = id
     self.policy = policy
   
   def select_peers(self, neighbors: Sequence[Client], k: float = None) -> Sequence[Client]:
@@ -29,11 +32,17 @@ class PeerSelector:
         Sequence[Client]: Sequence of selected peers.
     """    
     if self.policy == PeerSelector.Policy.FULL:
-      return PeerSelector.full_selection(neighbors)
+      peers = PeerSelector.full_selection(neighbors)
+      logger.info('Selected peers: {}'.format(', '.join([str(peer) for peer in peers])), extra = {'client': self.id})
+      return peers
     elif self.policy == PeerSelector.Policy.RANDOM:
-      return PeerSelector.random_selection(neighbors, k = k)
+      peers = PeerSelector.random_selection(neighbors, k = k)
+      logger.info('Selected peers: {}'.format(', '.join([str(peer) for peer in peers])), extra = {'client': self.id})
+      return peers
     elif self.policy == PeerSelector.Policy.EFFICIENT:
-      return PeerSelector.efficient_selection(neighbors)
+      peers = PeerSelector.efficient_selection(neighbors)
+      logger.info('Selected peers: {}'.format(', '.join([str(peer) for peer in peers])), extra = {'client': self.id})
+      return peers
     else:
       raise ValueError(f'Policy {self.policy} not recognized!')
 

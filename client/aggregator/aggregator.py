@@ -1,20 +1,24 @@
-from enum import Enum
+from enum import IntEnum
 from typing import List, OrderedDict
-
+import logging
 import torch
 
+logger = logging.getLogger(__name__)
 
 class Aggregator:
-  class Policy(str, Enum):
-    FEDAVG = 'FedAvg'
-    MIXING = 'Mixing'
+  class Policy(IntEnum):
+    FEDAVG = 0
+    MIXING = 1
     
-  def __init__(self, policy: Policy) -> None:
+  def __init__(self, id: int, policy: Policy) -> None:
+    self.id = id
     self.policy = policy
     
   def aggregate(self, state_dicts: List[OrderedDict]) -> OrderedDict:
     if self.policy == Aggregator.Policy.FEDAVG:
-      return Aggregator.fedavg(state_dicts)
+      agg_state = Aggregator.fedavg(state_dicts)
+      logger.info(f'{len(state_dicts)} states of {len(agg_state)} layers were aggregated', extra = {'client': self.id})
+      return agg_state
   
   @staticmethod
   def fedavg(state_dicts: List[OrderedDict]) -> OrderedDict:

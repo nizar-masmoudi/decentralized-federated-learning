@@ -1,36 +1,90 @@
 import argparse
-import yaml
 from client import Client
 import logging
 import itertools
+from client.dataset.utils import DataChunk
+from torchvision.datasets import MNIST
+from torchvision.transforms import ToTensor
+from client.models import ConvNet
+from functools import partial
+import torch
+import numpy as np
 
 class Filter(logging.Filter):
   def filter(self, record):
     record.source = f'{record.name}.{record.funcName}'
     if not hasattr(record, 'client'):
-      setattr(record, 'client', -1)
+      setattr(record, 'client', 'Global')
+    else:
+      setattr(record, 'client', f'Client {record.client}')
     return True
   
 handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter('%(levelname)-5s | Client %(client)-2s | %(source)-35s | %(message)s'))
+handler.setFormatter(logging.Formatter('%(levelname)-5s | %(source)-40s | %(client)-10s | %(message)s'))
 handler.addFilter(Filter())
 
 logging.basicConfig(level = logging.DEBUG, handlers = [handler])
 
+logger = logging.getLogger(__name__)
+
 def main():
   # TODO: Write description
   parser = argparse.ArgumentParser(description = '', formatter_class = argparse.RawDescriptionHelpFormatter)
-  parser.add_argument('-c', '--config', type = argparse.FileType('r'), default = 'config.yml', help = 'YAML Config file.')
   parser.add_argument('-n', '--nodes', type = int, default = 3, help = 'Number of nodes.')
   args = parser.parse_args()
   
-  
-  config = yaml.safe_load(args.config)
       
-  client1 = Client(config)
-  client2 = Client(config)
-  client3 = Client(config)
-  client4 = Client(config)
+  client1 = Client(
+    train_ds = DataChunk(MNIST(root = 'data', train = True, transform = ToTensor(), download = True), 10000),
+    test_ds = MNIST(root = 'data', train = False, transform = ToTensor(), download = True),
+    model = ConvNet(),
+    optimizer = partial(torch.optim.SGD, lr = .01, momentum = 0.9),
+    batch_size = 32,
+    loss_fn = torch.nn.CrossEntropyLoss(),
+    n_epochs = 3,
+    aggregation_policy = Client.AggregationPolicy.FEDAVG,
+    selection_policy = Client.SelectionPolicy.FULL,
+    activation_policy = Client.ActivationPolicy.FULL
+  )
+  
+  client2 = Client(
+    train_ds = DataChunk(MNIST(root = 'data', train = True, transform = ToTensor(), download = True), 10000),
+    test_ds = MNIST(root = 'data', train = False, transform = ToTensor(), download = True),
+    model = ConvNet(),
+    optimizer = partial(torch.optim.SGD, lr = .01, momentum = 0.9),
+    batch_size = 32,
+    loss_fn = torch.nn.CrossEntropyLoss(),
+    n_epochs = 3,
+    aggregation_policy = Client.AggregationPolicy.FEDAVG,
+    selection_policy = Client.SelectionPolicy.FULL,
+    activation_policy = Client.ActivationPolicy.FULL
+  )
+  
+  client3 = Client(
+    train_ds = DataChunk(MNIST(root = 'data', train = True, transform = ToTensor(), download = True), 10000),
+    test_ds = MNIST(root = 'data', train = False, transform = ToTensor(), download = True),
+    model = ConvNet(),
+    optimizer = partial(torch.optim.SGD, lr = .01, momentum = 0.9),
+    batch_size = 32,
+    loss_fn = torch.nn.CrossEntropyLoss(),
+    n_epochs = 3,
+    aggregation_policy = Client.AggregationPolicy.FEDAVG,
+    selection_policy = Client.SelectionPolicy.FULL,
+    activation_policy = Client.ActivationPolicy.FULL
+  )
+  
+  client4 = Client(
+    train_ds = DataChunk(MNIST(root = 'data', train = True, transform = ToTensor(), download = True), 10000),
+    test_ds = MNIST(root = 'data', train = False, transform = ToTensor(), download = True),
+    model = ConvNet(),
+    optimizer = partial(torch.optim.SGD, lr = .01, momentum = 0.9),
+    batch_size = 32,
+    loss_fn = torch.nn.CrossEntropyLoss(),
+    n_epochs = 3,
+    aggregation_policy = Client.AggregationPolicy.FEDAVG,
+    selection_policy = Client.SelectionPolicy.FULL,
+    activation_policy = Client.ActivationPolicy.FULL
+  )
   
   client1.location = (36.89891408403747, 10.171681937598443)
   client2.location = (36.88078621070918, 10.212364771421965)
@@ -39,10 +93,29 @@ def main():
   
   clients = [client1, client2, client3, client4]
   
-  for ci, cj in itertools.combinations(clients, 2):
-    print(f'Distance between {ci} and {cj} = {Client.distance(ci, cj)}')
+  # dists = [[.0 for _ in range(len(clients))] for _ in range(len(clients))]
+  # for ci, cj in itertools.permutations(clients, 2):
+  #   dists[clients.index(ci)][clients.index(cj)] = Client.distance(ci, cj)
+  # print(np.array(dists))
+    
+  for client in clients:
+    client.lookup(clients, max_dist = 10)
+    
+  for r in range(1, 5):
+    logger.info(f'Round {r} started')
+    for client in clients:
+      client.activate()
+    
+    for client in clients:
+      if client.is_active:
+        client.train()
+    
+    for client in clients:
+      client.select_peers()
+      
+    for client in clients:
+      client.aggregate([peer.model.state_dict() for peer in client.peers])
   
-  print(client4.lookup([client1, client2, client3, client4], max_dist = 5))
   
 
   
