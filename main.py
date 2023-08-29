@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 MODEL = ConvNet
 OPTIMIZER = SGD
 OPT_PARAMS = dict(lr=.01, momentum=.9)
-BATCH_SIZE = 32
+BATCH_SIZE = 2
 LOSS = CrossEntropyLoss
 EPOCHS = 3
 AGGREGATION_POLICY = Client.AggregationPolicy.FEDAVG
@@ -94,7 +94,7 @@ def main():
     # Report client information
 
     for client in clients:
-        client.train()
+        client.evaluate()
 
     # dists = [[.0 for _ in range(len(clients))] for _ in range(len(clients))]
     # for ci, cj in itertools.permutations(clients, 2):

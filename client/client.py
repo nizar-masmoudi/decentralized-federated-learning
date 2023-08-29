@@ -103,14 +103,16 @@ class Client:
     """
         neighbors = [client for client in clients if (client != self) and Client.distance(self, client) < max_dist]
         self.neighbors = neighbors
-        logger.info('Detected neighbors: {}'.format(', '.join(str(neighbor) for neighbor in self.neighbors)),
-                    extra={'client': self.client_id})
+        logger.info('Detected neighbors: {}'.format(', '.join(str(neighbor) for neighbor in self.neighbors)), extra={'client': self.client_id})
         return neighbors
 
     def train(self):
         """Run a local training process.
     """
         self.trainer.train()
+
+    def evaluate(self):
+        self.trainer.evaluate()
 
     def aggregate(self, state_dicts: List[Dict]):
         """Aggregate models using predefined policy.
