@@ -18,17 +18,7 @@ class Activator:
         self.policy = policy
 
     def activate(self, p: float = None) -> bool:
-        """Activate client for round participation according to a predefined policy.
-
-    Args:
-        p (float, optional): Probability of activation. This parameter is only relevant with Random Activation policy. Defaults to None.
-
-    Raises:
-        ValueError: Unrecognized policy.
-
-    Returns:
-        bool: Indicates whether client is active or not.
-    """
+        """Activate client for round participation according to a predefined policy"""
         if self.policy == Activator.Policy.FULL:
             is_active = Activator.full_activation()
             logger.info('Client set to {}'.format('active' if is_active else 'inactive'), extra={'client': self.client_id})
@@ -54,4 +44,5 @@ class Activator:
 
     @staticmethod
     def efficient_activation() -> bool:
+        # TODO: Implement efficient activation
         raise NotImplementedError

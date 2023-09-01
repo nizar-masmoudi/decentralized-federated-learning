@@ -24,19 +24,7 @@ class PeerSelector:
         self.policy = policy
 
     def select_peers(self, neighbors: List[Client], k: int = None) -> List[Client]:
-        """Select peers from neighboring nodes using a predefined policy.
-
-
-    Args:
-        neighbors (List[Client]): List of neighboring nodes.
-        k (float, optional): Number of peers to select. This parameter is relevant only when using Random Selection policy. Defaults to None.
-
-    Raises:
-        ValueError: Unrecognized policy.
-        
-    Returns:
-        List[Client]: List of selected peers.
-    """
+        """Select peers from neighboring nodes using a predefined policy"""
         if self.policy == PeerSelector.Policy.FULL:
             peers = PeerSelector.full_selection(neighbors)
             logger.info('Selected peers: {}'.format(', '.join([str(peer) for peer in peers])), extra={'client': self.client_id})
@@ -54,37 +42,16 @@ class PeerSelector:
 
     @staticmethod
     def full_selection(neighbors: List[Client]) -> List[Client]:
-        """Select all neighboring nodes as peers.
-
-    Args:
-        neighbors (List[Client]): List of neighboring nodes.
-
-    Returns:
-        List[Client]: List of selected peers.
-    """
+        """Select all neighboring nodes as peers"""
         return neighbors
 
     @staticmethod
     def random_selection(neighbors: List[Client], k: int) -> List[Client]:
-        """Select a random subset of neigbhbors as peers.
-
-    Args:
-        neighbors (List[Client]): List of neighboring nodes.
-        k (int): Size of subset.
-
-    Returns:
-        List[Client]: List of selected peers.
-    """
+        """Select a random subset of neigbhbors as peers"""
         return random.sample(neighbors, k)
 
     @staticmethod
     def efficient_selection(neighbors: List[Client]) -> List[Client]:
-        """Select a subset of neighbors using an energy-efficient policy based on knowledge gain.
-
-    Args:
-        neighbors (List[Client]): List of neighboring nodes.
-
-    Returns:
-        List[Client]: List of selected peers.
-    """
+        """Select a subset of neighbors using an energy-efficient policy based on knowledge gain"""
+        # TODO: Implement efficient peer selection
         raise NotImplementedError

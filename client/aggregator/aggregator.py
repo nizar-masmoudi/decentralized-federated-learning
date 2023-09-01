@@ -29,3 +29,8 @@ class Aggregator:
         for key in agg_state:
             agg_state[key] = torch.stack([state[key] for state in state_dicts if key in state.keys()]).mean(0)
         return agg_state
+
+    @staticmethod
+    def mixing(state_dicts: List[Dict]) -> Dict:
+        # TODO: Implement mixing aggregation
+        raise NotImplementedError
