@@ -21,9 +21,15 @@ class Formatter(logging.Formatter):
 class ConsoleLogger(logging.Logger):
     def __init__(self, name: str):
         super().__init__(name)
-        # Add console handler with custom formatter and custom filter
-        handler = logging.StreamHandler()
-        handler.setFormatter(Formatter())
-        handler.addFilter(Filter())
-        self.addHandler(handler)
+        # Add console handler
+        streamhandler = logging.StreamHandler()
+        streamhandler.setFormatter(Formatter())
+        streamhandler.addFilter(Filter())
+        # Add file handler
+        filehandler = logging.FileHandler('logs/access_log.log')
+        filehandler.setFormatter(Formatter())
+        filehandler.addFilter(Filter())
+
+        self.addHandler(streamhandler)
+        self.addHandler(filehandler)
         self.setLevel(logging.DEBUG)
