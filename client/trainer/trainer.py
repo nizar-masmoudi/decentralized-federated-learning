@@ -1,9 +1,8 @@
 import torch
 
 from client.dataset.loaders import DeviceDataLoader
-from torch.utils.data import DataLoader, Dataset, random_split
+from torch.utils.data import DataLoader, Dataset, random_split, Subset
 import torch.nn as nn
-from client.dataset.utils import DataChunk
 import logging
 from torch.optim import Optimizer
 from typing import Callable
@@ -16,7 +15,7 @@ logger = logging.getLogger(__name__)
 class Trainer:
     def __init__(self,
                  client_id: int,
-                 train_ds: DataChunk,
+                 train_ds: Subset,
                  test_ds: Dataset,
                  model: nn.Module,
                  optimizer: Optimizer,
@@ -47,7 +46,7 @@ class Trainer:
         # Prepare dataloaders
         self.train_dl = DeviceDataLoader(DataLoader(self.train_ds, batch_size=self.batch_size, shuffle=True), self.device)
         self.valid_dl = DeviceDataLoader(DataLoader(self.valid_ds, batch_size=self.batch_size, shuffle=True), self.device)
-        self.test_dl = DeviceDataLoader(DataLoader(self.test_ds, batch_size=self.batch_size), self.device)
+        self.test_dl = DeviceDataLoader(DataLoader(self.test_ds, batch_size=self.batch_size, shuffle=True), self.device)
 
         # W&B - Watch model
         # self.wandb_logger.watch(model=self.model, loss_fn=self.loss_fn, client_id=self.client_id)
@@ -61,7 +60,7 @@ class Trainer:
         self.optimizer.step()
         return loss.item() / len(batch)  # Average loss
 
-    def train(self):
+    def train(self, ridx: int):
         for epoch in range(1, self.n_epochs + 1):
             # Training (1 epoch)
             running_tloss = 0.
@@ -74,8 +73,8 @@ class Trainer:
             self.model.eval()
             avg_vloss = self.validate()
             # Gather and report
-            logger.info('Epoch [{:>2}/{:>2}] - Training loss = {:.3f} - Validation loss = {:.3f}'.format(epoch, self.n_epochs, avg_tloss, avg_vloss), extra={'client': self.client_id})
-            self.wandb_logger.log_metrics(metric_dict={'Training loss': {f'Client {self.client_id}': avg_tloss}, 'Validation loss': {f'Client {self.client_id}': avg_vloss}}, epoch=epoch)
+            logger.info('Epoch [{:>2}/{:>2}] - Training loss = {:.3f} - Validation loss = {:.3f} - Total epochs = {}'.format(epoch, self.n_epochs, avg_tloss, avg_vloss, epoch + (ridx*self.n_epochs)), extra={'client': self.client_id})
+            self.wandb_logger.log_metrics(metric_dict={'tloss': {f'c{self.client_id}': avg_tloss}, 'vloss': {f'c{self.client_id}': avg_vloss}}, epoch=epoch, ridx=ridx)
 
     def validate(self):
         running_vloss = 0.
