@@ -4,15 +4,13 @@ import logging
 from torchvision.datasets import MNIST
 from torchvision.transforms import ToTensor
 from client.models import ConvNet
-from torch.optim import SGD
-from torch.nn import CrossEntropyLoss
 from client.loggers import ConsoleLogger, WandbLogger
 from client.dataset.sampling import DataChunk
 import torch
 from client.configs import TrainerConfig, NodeConfig, TransmissionConfig, ComputationConfig
 from client.aggregator import Aggregator
 from client.selector import PeerSelector
-from client.activator import ClientActivator
+from client.activation import ClientActivator
 
 # Setup console logger
 logging.setLoggerClass(ConsoleLogger)
@@ -48,18 +46,21 @@ wandb_logger = WandbLogger(
 def main():
     # TODO: Write description
     parser = argparse.ArgumentParser(description='', formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('-c', '--clients', type=int, default=1, help='Number of clients.')
+    parser.add_argument('-c', '--clients', type=int, default=3, help='Number of clients.')
     parser.add_argument('-r', '--rounds', type=int, default=10, help='Number of rounds.')
     args = parser.parse_args()
 
     # Initialize clients
     clients = []
-    for _ in range(args.clients):
+    for id_ in range(1, args.clients + 1):
         # Configuration
         metadata = NodeConfig(geo_limits=((36.897092, 10.152086), (36.870453, 10.219636)))
-        dataset = DataChunk(MNIST(root='data', train=True, transform=ToTensor(), download=True), size=1024, equal=True)
+        logger.debug(metadata, extra={'client': id_})
+        dataset = DataChunk(MNIST(root='data', train=True, transform=ToTensor(), download=True), size=1024, iid=True)
+        logger.debug(repr(dataset), extra={'client': id_})
         testset = MNIST(root='data', train=False, transform=ToTensor(), download=True)
         model = ConvNet()
+        logger.debug(repr(model), extra={'client': id_})
         trainer_cfg = TrainerConfig(
             opt_class=torch.optim.SGD,
             opt_params=dict(lr=.01, momentum=.9),
@@ -68,11 +69,17 @@ def main():
             local_epochs=3,
             validation_split=.1,
         )
+        logger.debug(trainer_cfg, extra={'client': id_})
         comp_cfg = ComputationConfig(cpu_cycles=2, computation_capacity=2)
+        logger.debug(comp_cfg, extra={'client': id_})
         trans_cfg = TransmissionConfig(transmission_power=5, bandwidth=50e10)
+        logger.debug(trans_cfg, extra={'client': id_})
         aggregation_policy = Aggregator.Policy.FEDAVG
+        logger.debug(repr(aggregation_policy), extra={'client': id_})
         selection_policy = PeerSelector.Policy.FULL
+        logger.debug(repr(selection_policy), extra={'client': id_})
         activation_policy = ClientActivator.Policy.FULL
+        logger.debug(repr(activation_policy), extra={'client': id_})
 
         # Initializing clients
         clients.append(
@@ -91,12 +98,10 @@ def main():
             )
         )
 
-    # client = clients[0]
-    # train_dl = client.trainer.train_dl
-    # imgs, targets = next(iter(train_dl))
-    # print(torch.unique(targets, return_counts=True))
-    # imgs, targets = next(iter(train_dl))
-    # print(imgs.shape, targets.shape)
+    from client.activation.efficient import EfficientActivation
+    for client in clients:
+        client.lookup(clients, max_dist=3)
+        active = EfficientActivation.activate(client, client.metadata.neighbors, .5)
 
     # for ridx in range(args.rounds):
     #     logger.info(f'Round [{ridx+1}/{args.rounds}] started')

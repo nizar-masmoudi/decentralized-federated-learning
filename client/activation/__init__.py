@@ -1,0 +1,1 @@
+from client.activation.activator import ClientActivator

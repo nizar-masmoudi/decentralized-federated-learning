@@ -13,6 +13,9 @@ class Aggregator:
         FEDAVG = 0
         MIXING = 1
 
+        def __repr__(self):
+            return f'AggregationPolicy=Aggregator.{self.__class__.__name__}.{self.name}'
+
     def __init__(self, id_: int, policy: Policy) -> None:
         self.id_ = id_
         self.policy = policy

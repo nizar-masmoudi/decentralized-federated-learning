@@ -20,6 +20,9 @@ class PeerSelector:
         FULL = 1
         EFFICIENT = 2
 
+        def __repr__(self):
+            return f'PeerSelectionPolicy=PeerSelector.{self.__class__.__name__}.{self.name}'
+
     def __init__(self, id_: int, policy: Policy, trans_cfg: TransmissionConfig) -> None:
         self.id_ = id_
         self.policy = policy

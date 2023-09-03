@@ -8,7 +8,7 @@ import torch.optim
 from torch.utils.data import Dataset
 from client.dataset.sampling import DataChunk
 
-from client.activator import ClientActivator
+from client.activation import ClientActivator
 from client.aggregator import Aggregator
 from client.selector import PeerSelector
 from client.trainer import Trainer
@@ -42,6 +42,8 @@ class Client:
         self.model = model
         self.metadata = metadata
         self.trainer_cfg = trainer_cfg
+        self.trans_cfg = trans_cfg
+        self.comp_cfg = comp_cfg
         self.wandb_logger = wandb_logger
 
         # Modules
@@ -54,20 +56,31 @@ class Client:
         return self.id_ == other.id_
 
     def __repr__(self) -> str:
-        return f'Client{self.id_}'
+        return f'Client(id={self.id_})'
 
     def relocate(self):
         (lat_min, lon_min), (lat_max, lon_max) = self.metadata.geo_limits
-        location = self.metadata.location.copy()
+        location = self.metadata.location
         self.metadata.location = (random.uniform(lat_min, lat_max), random.uniform(lon_min, lon_max))
         logger.info(f'Client relocated from {location} to {self.metadata.location}', extra={'client': self.id_})
 
     def lookup(self, clients: List['Client'], max_dist: float) -> List['Client']:
-        """Lookup clients within a certain distance (communication reach)"""
+        """Lookup neighbors within a certain distance (communication reach)"""
         neighbors = [client for client in clients if (client != self) and Client.distance(self, client) < max_dist]
         self.metadata.neighbors = neighbors
-        logger.info('Detected neighbors: {}'.format(', '.join(str(neighbor) for neighbor in self.metadata.neighbors)), extra={'client': self.id_})
+        logger.info('{}=[{}]'.format('Client.lookup(...)', ', '.join(repr(neighbor) for neighbor in self.metadata.neighbors)), extra={'client': self.id_})
         return neighbors
+
+    def computation_energy(self):
+        energy = self.trainer_cfg.local_epochs * self.comp_cfg.effective_capacitance * self.comp_cfg.cpu_cycles * len(self.dataset) * self.comp_cfg.computation_capacity**2
+        logger.debug(f'Client.computation_energy(...)={energy}', extra={'client': self.id_})
+        return energy
+
+    def communication_energy(self, peer: 'Client', object_size: float):
+        channel_gain = Client.distance(self, peer)
+        energy = (object_size * self.trans_cfg.transmission_power) / (self.trans_cfg.bandwidth * math.log2(1 + (self.trans_cfg.transmission_power*channel_gain)/(self.trans_cfg.psd*self.trans_cfg.bandwidth)))
+        logger.debug(f'Client.communication_energy(...)={energy}', extra={'client': self.id_})
+        return energy
 
     def train(self, ridx: int):
         """Run a local training process"""
