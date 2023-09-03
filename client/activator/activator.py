@@ -2,34 +2,36 @@ import random
 from enum import IntEnum
 import logging
 from client.loggers.console import ConsoleLogger
+from client.configs import ComputationConfig
 
 logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)
 
 
-class Activator:
+class ClientActivator:
     class Policy(IntEnum):
         RANDOM = 0
         FULL = 1
         EFFICIENT = 2
 
-    def __init__(self, client_id: int, policy: Policy) -> None:
-        self.client_id = client_id
+    def __init__(self, id_: int, policy: Policy, comp_cfg: ComputationConfig) -> None:
+        self.id_ = id_
         self.policy = policy
+        self.comp_cfg = comp_cfg
 
     def activate(self, p: float = None) -> bool:
         """Activate client for round participation according to a predefined policy"""
-        if self.policy == Activator.Policy.FULL:
-            is_active = Activator.full_activation()
-            logger.info('Client set to {}'.format('active' if is_active else 'inactive'), extra={'client': self.client_id})
+        if self.policy == ClientActivator.Policy.FULL:
+            is_active = ClientActivator.full_activation()
+            logger.info('Client set to {}'.format('active' if is_active else 'inactive'), extra={'client': self.id_})
             return is_active
-        elif self.policy == Activator.Policy.RANDOM:
-            is_active = Activator.random_activation(p=p)
-            logger.info('Client set to {}'.format('active' if is_active else 'inactive'), extra={'client': self.client_id})
+        elif self.policy == ClientActivator.Policy.RANDOM:
+            is_active = ClientActivator.random_activation(p=p)
+            logger.info('Client set to {}'.format('active' if is_active else 'inactive'), extra={'client': self.id_})
             return is_active
-        elif self.policy == Activator.Policy.EFFICIENT:
-            is_active = Activator.efficient_activation()
-            logger.info('Client set to {}'.format('active' if is_active else 'inactive'), extra={'client': self.client_id})
+        elif self.policy == ClientActivator.Policy.EFFICIENT:
+            is_active = ClientActivator.efficient_activation()
+            logger.info('Client set to {}'.format('active' if is_active else 'inactive'), extra={'client': self.id_})
             return is_active
         else:
             raise ValueError(f'Policy {self.policy} not recognized!')

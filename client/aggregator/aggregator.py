@@ -13,14 +13,14 @@ class Aggregator:
         FEDAVG = 0
         MIXING = 1
 
-    def __init__(self, client_id: int, policy: Policy) -> None:
-        self.client_id = client_id
+    def __init__(self, id_: int, policy: Policy) -> None:
+        self.id_ = id_
         self.policy = policy
 
     def aggregate(self, state_dicts: List[Dict]) -> Dict:
         if self.policy == Aggregator.Policy.FEDAVG:
             agg_state = Aggregator.fedavg(state_dicts)
-            logger.info(f'{len(state_dicts)} states of {len(agg_state)} layers were aggregated', extra={'client': self.client_id})
+            logger.info(f'{len(state_dicts)} states of {len(agg_state)} layers were aggregated', extra={'client': self.id_})
             return agg_state
 
     @staticmethod

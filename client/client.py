@@ -2,19 +2,19 @@ import itertools
 import logging
 import math
 from enum import IntEnum
-from typing import List, Dict, Callable, Sequence
+from typing import List, Dict
 
-import torch.nn as nn
 import torch.optim
-from torch.utils.data import Dataset, Subset
+from torch.utils.data import Dataset
+from client.dataset.sampling import DataChunk
 
-from client.activator import Activator
+from client.activator import ClientActivator
 from client.aggregator import Aggregator
-from torch.utils.data import WeightedRandomSampler
 from client.selector import PeerSelector
 from client.trainer import Trainer
 from client.loggers import ConsoleLogger, WandbLogger
 import random
+from client.configs import TrainerConfig, NodeConfig, TransmissionConfig, ComputationConfig
 
 logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)
@@ -23,93 +23,50 @@ logger = logging.getLogger(__name__)
 class Client:
     inc = itertools.count(start=1)
 
-    class AggregationPolicy(IntEnum):
-        FEDAVG = 0
-        MIXING = 1
-
-    class ActivationPolicy(IntEnum):
-        RANDOM = 0
-        FULL = 1
-        EFFICIENT = 2
-
-    class SelectionPolicy(IntEnum):
-        RANDOM = 0
-        FULL = 1
-        EFFICIENT = 2
-
     def __init__(self,
-                 geo_limits: Sequence[Sequence],
-                 # Dataset args
-                 train_ds: Subset,
-                 test_ds: Dataset,
-                 # Trainer args
-                 model: nn.Module,
-                 optimizer: torch.optim.Optimizer,
-                 batch_size: int,
-                 loss_fn: Callable,
-                 n_epochs: int,
-                 # Aggregator args
-                 aggregation_policy: AggregationPolicy,
-                 # Selector args
-                 selection_policy: SelectionPolicy,
-                 # Activator args
-                 activation_policy: ActivationPolicy,
+                 metadata: NodeConfig,
+                 dataset: DataChunk,
+                 testset: torch.utils.data.Dataset,
+                 model: torch.nn.Module,
+                 trainer_cfg: TrainerConfig,
+                 aggregation_policy: Aggregator.Policy,
+                 selection_policy: PeerSelector.Policy,
+                 activation_policy: ClientActivator.Policy,
+                 trans_cfg: TransmissionConfig,
+                 comp_cfg: ComputationConfig,
                  wandb_logger: WandbLogger,
                  ) -> None:
-        self.client_id = next(Client.inc)  # Auto-increment ID
-        self.geo_limits = geo_limits
+        self.id_ = next(Client.inc)  # Auto-increment ID
+        self.dataset = dataset
+        self.testset = testset
         self.model = model
-        self.optimizer = optimizer
-        self.train_ds = train_ds
-        self.test_ds = test_ds
-        self.batch_size = batch_size
-        self.loss_fn = loss_fn
-        self.n_epochs = n_epochs
-        self.location = (-1, -1)
-        self.is_active = False
-        self.neighbors = []
-        self.peers = []
+        self.metadata = metadata
+        self.trainer_cfg = trainer_cfg
         self.wandb_logger = wandb_logger
 
         # Modules
-        self.trainer = Trainer(
-            client_id=self.client_id,
-            train_ds=self.train_ds,
-            test_ds=self.test_ds,
-            model=self.model,
-            optimizer=self.optimizer,
-            batch_size=self.batch_size,
-            loss_fn=self.loss_fn,
-            n_epochs=self.n_epochs,
-            wandb_logger=self.wandb_logger
-        )
-        self.aggregator = Aggregator(client_id=self.client_id, policy=aggregation_policy)
-        self.selector = PeerSelector(client_id=self.client_id, policy=selection_policy)
-        self.activator = Activator(client_id=self.client_id, policy=activation_policy)
-
-        # Set initial location
-        self.relocate()
+        self.trainer = Trainer(self.id_, self.model, self.dataset, self.testset, self.trainer_cfg, self.wandb_logger)
+        self.aggregator = Aggregator(self.id_, aggregation_policy)
+        self.selector = PeerSelector(self.id_, selection_policy, trans_cfg)
+        self.activator = ClientActivator(self.id_, activation_policy, comp_cfg)
 
     def __eq__(self, other: 'Client') -> bool:
-        return self.client_id == other.client_id
+        return self.id_ == other.id_
 
     def __repr__(self) -> str:
-        return f'Client{self.client_id}'
+        return f'Client{self.id_}'
 
     def relocate(self):
-        (lat_min, lon_min), (lat_max, lon_max) = self.geo_limits
-        old_loc = self.location
-        self.location = (random.uniform(lat_min, lat_max), random.uniform(lon_min, lon_max))
-        if old_loc == (-1, -1):
-            logger.info(f'Client location set to {self.location}', extra={'client': self.client_id})
-        else:
-            logger.info(f'Client relocated from {old_loc} to {self.location}', extra={'client': self.client_id})
+        (lat_min, lon_min), (lat_max, lon_max) = self.metadata.geo_limits
+        location = self.metadata.location.copy()
+        self.metadata.location = (random.uniform(lat_min, lat_max), random.uniform(lon_min, lon_max))
+        logger.info(f'Client relocated from {location} to {self.metadata.location}', extra={'client': self.id_})
 
     def lookup(self, clients: List['Client'], max_dist: float) -> List['Client']:
         """Lookup clients within a certain distance (communication reach)"""
         neighbors = [client for client in clients if (client != self) and Client.distance(self, client) < max_dist]
-        self.neighbors = neighbors
-        logger.info('Detected neighbors: {}'.format(', '.join(str(neighbor) for neighbor in self.neighbors)), extra={'client': self.client_id})
+        self.metadata.neighbors = neighbors
+        logger.info('Detected neighbors: {}'.format(', '.join(str(neighbor) for neighbor in self.metadata.neighbors)), extra={'client': self.id_})
         return neighbors
 
     def train(self, ridx: int):
@@ -127,18 +84,18 @@ class Client:
 
     def select_peers(self, k: float = None):
         """Select peers from neighboring nodes using a predefined policy"""
-        self.peers = self.selector.select_peers(self.neighbors, k)
+        self.metadata.peers = self.selector.select_peers(self.metadata.neighbors, k)
 
     def activate(self):
-        self.is_active = self.activator.activate()
+        self.metadata.active = self.activator.activate()
 
     @staticmethod
     def distance(client1: 'Client', client2: 'Client') -> float:
         """Compute distance between two clients using their lon - lat coordinates"""
         radius = 6371.0  # Radius of the Earth in kilometers
 
-        lat1, lon1 = client1.location
-        lat2, lon2 = client2.location
+        lat1, lon1 = client1.metadata.location
+        lat2, lon2 = client2.metadata.location
 
         # Convert degrees to radians
         lat1 = math.radians(lat1)
