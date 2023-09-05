@@ -9,22 +9,23 @@ logger = logging.getLogger(__name__)
 
 
 class Aggregator:
-    class Policy(IntEnum):
+    class AggregationPolicy(IntEnum):
         FEDAVG = 0
         MIXING = 1
 
-        def __repr__(self):
-            return f'AggregationPolicy=Aggregator.{self.__class__.__name__}.{self.name}'
-
-    def __init__(self, id_: int, policy: Policy) -> None:
+    def __init__(self, id_: int, policy: AggregationPolicy) -> None:
         self.id_ = id_
         self.policy = policy
 
     def aggregate(self, state_dicts: List[Dict]) -> Dict:
-        if self.policy == Aggregator.Policy.FEDAVG:
+        if self.policy == Aggregator.AggregationPolicy.FEDAVG:
             agg_state = Aggregator.fedavg(state_dicts)
-            logger.info(f'{len(state_dicts)} states of {len(agg_state)} layers were aggregated', extra={'client': self.id_})
             return agg_state
+        elif self.policy == Aggregator.AggregationPolicy.MIXING:
+            agg_state = Aggregator.mixing(state_dicts)
+            return agg_state
+        else:
+            raise ValueError(f'Policy {self.policy} not recognized!')
 
     @staticmethod
     def fedavg(state_dicts: List[Dict]) -> Dict:
@@ -35,5 +36,4 @@ class Aggregator:
 
     @staticmethod
     def mixing(state_dicts: List[Dict]) -> Dict:
-        # TODO: Implement mixing aggregation
         raise NotImplementedError

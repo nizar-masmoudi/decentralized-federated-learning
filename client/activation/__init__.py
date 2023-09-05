@@ -1,1 +1,1 @@
-from client.activation.activator import ClientActivator
+from client.activation.activator import Activator
