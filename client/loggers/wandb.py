@@ -22,8 +22,8 @@ class WandbLogger:
         # self.run.define_metric('tloss', step_metric='epoch', summary='min', goal='minimize')
         # self.run.define_metric('vloss', step_metric='epoch', summary='min', goal='minimize')
 
-    def log_metrics(self, metric_dict: dict, epoch: int, ridx: int):
-        self.run.log({**metric_dict, 'epoch': epoch, 'round': ridx})
+    def log_metrics(self, metric_dict: dict, epoch: int, round_: int):
+        self.run.log({**metric_dict, 'epoch': epoch, 'round': round_})
 
     def watch(self, model: nn.Module, loss_fn: Callable, client_id: int):
         self.run.watch(model, loss_fn, log='all', idx=client_id)
