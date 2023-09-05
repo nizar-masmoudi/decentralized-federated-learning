@@ -7,9 +7,9 @@ from client.models import ConvNet
 from client.loggers import ConsoleLogger, WandbLogger
 from client.dataset.sampling import DataChunk
 import torch
-from client.configs import TrainerConfig, NodeConfig, TransmissionConfig, ComputationConfig
-from client.aggregator import Aggregator
-from client.selector import PeerSelector
+from client.configs import TrainerConfig, Metadata, TransmissionConfig, ComputationConfig
+from client.aggregation import Aggregator
+from client.selection import PeerSelector
 from client.activation import ClientActivator
 
 # Setup console logger
@@ -54,7 +54,7 @@ def main():
     clients = []
     for id_ in range(1, args.clients + 1):
         # Configuration
-        metadata = NodeConfig(geo_limits=((36.897092, 10.152086), (36.870453, 10.219636)))
+        metadata = Metadata(geo_limits=((36.897092, 10.152086), (36.870453, 10.219636)))
         logger.debug(metadata, extra={'client': id_})
         dataset = DataChunk(MNIST(root='data', train=True, transform=ToTensor(), download=True), size=1024, iid=True)
         logger.debug(repr(dataset), extra={'client': id_})
@@ -70,7 +70,7 @@ def main():
             validation_split=.1,
         )
         logger.debug(trainer_cfg, extra={'client': id_})
-        comp_cfg = ComputationConfig(cpu_cycles=2, computation_capacity=2)
+        comp_cfg = ComputationConfig(cpu_cycles=2, cpu_frequency=2)
         logger.debug(comp_cfg, extra={'client': id_})
         trans_cfg = TransmissionConfig(transmission_power=5, bandwidth=50e10)
         logger.debug(trans_cfg, extra={'client': id_})
@@ -98,10 +98,13 @@ def main():
             )
         )
 
-    from client.activation.efficient import EfficientActivation
     for client in clients:
-        client.lookup(clients, max_dist=3)
-        active = EfficientActivation.activate(client, client.metadata.neighbors, .5)
+        client.computation_energy()
+        for other in clients:
+            if other != client:
+                client.communication_energy(other, 1)
+        # client.lookup(clients, max_dist=3)
+        # active = EfficientActivation.activate(client, client.metadata.neighbors, .5)
 
     # for ridx in range(args.rounds):
     #     logger.info(f'Round [{ridx+1}/{args.rounds}] started')

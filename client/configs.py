@@ -6,7 +6,6 @@ import random
 import logging
 from client.loggers import ConsoleLogger
 import torch.nn as nn
-import math
 
 logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)
@@ -46,6 +45,10 @@ class TrainerConfig(Configuration):
     device: torch.device = dataclasses.field(default=torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu'), init=False)
 
     def setup_optim(self, model: nn.Module):
+        """
+        Initialize optimizer and link it to model parameters.
+        :param model: Model to train.
+        """
         self.optimizer = self.opt_class(model.parameters(), **self.opt_params)
 
 
@@ -58,13 +61,13 @@ class TransmissionConfig(Configuration):
 
 @dataclasses.dataclass
 class ComputationConfig(Configuration):
-    cpu_cycles: int
-    computation_capacity: float
-    effective_capacitance: float = dataclasses.field(default=10e-28, init=False)
+    cpu_cycles: int                                                 # CPU cycles required for computing one sample data
+    cpu_frequency: float
+    kappa: float = dataclasses.field(default=10e-28, init=False)
 
 
 @dataclasses.dataclass
-class NodeConfig(Configuration):
+class Metadata(Configuration):
     geo_limits: Sequence[Sequence]
     learning_slope: float = dataclasses.field(default=999., init=False)
     location: tuple = dataclasses.field(default_factory=tuple, init=False)
@@ -73,7 +76,5 @@ class NodeConfig(Configuration):
     active: bool = dataclasses.field(default=False, init=False)
 
     def __post_init__(self):
-        # Setup initial location
         (lat_min, lon_min), (lat_max, lon_max) = self.geo_limits
         self.location = (random.uniform(lat_min, lat_max), random.uniform(lon_min, lon_max))
-        # super().__post_init__()
