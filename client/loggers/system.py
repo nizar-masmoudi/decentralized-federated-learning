@@ -1,4 +1,9 @@
 import logging
+from dotenv import load_dotenv
+import os
+import os.path as osp
+
+load_dotenv()
 
 
 class Filter(logging.Filter):
@@ -18,7 +23,7 @@ class Formatter(logging.Formatter):
         super().__init__(fmt='%(levelname)-5s | %(source)-40s | %(client)-10s | %(message)s')
 
 
-class ConsoleLogger(logging.Logger):
+class SystemLogger(logging.Logger):
     def __init__(self, name: str):
         super().__init__(name)
         # Add console handler
@@ -26,7 +31,7 @@ class ConsoleLogger(logging.Logger):
         streamhandler.setFormatter(Formatter())
         streamhandler.addFilter(Filter())
         # Add file handler
-        filehandler = logging.FileHandler('logs/access_log.log')
+        filehandler = logging.FileHandler(osp.join(os.environ['BASE_PATH'], 'logs', 'access_log.log'))
         filehandler.setFormatter(Formatter())
         filehandler.addFilter(Filter())
 
