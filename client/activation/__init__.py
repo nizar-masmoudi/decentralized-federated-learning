@@ -1,1 +1,1 @@
-from client.activation.activator import Activator
+from client.activation.activators import RandomActivator, EfficientActivator

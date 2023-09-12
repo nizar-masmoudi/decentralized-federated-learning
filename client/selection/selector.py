@@ -25,7 +25,6 @@ class PeerSelector:
     def __init__(self, policy: SelectionPolicy) -> None:
         self.id_ = next(PeerSelector.inc)  # Auto-increment ID
         self.policy = policy
-        logger.debug(repr(self), extra={'client': self.id_})
 
     def __repr__(self):
         return f'PeerSelector(id={self.id_}, policy={self.policy.name})'

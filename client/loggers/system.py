@@ -2,6 +2,7 @@ import logging
 from dotenv import load_dotenv
 import os
 import os.path as osp
+import sys
 
 load_dotenv()
 
@@ -27,7 +28,7 @@ class SystemLogger(logging.Logger):
     def __init__(self, name: str):
         super().__init__(name)
         # Add console handler
-        streamhandler = logging.StreamHandler()
+        streamhandler = logging.StreamHandler(stream=sys.stdout)
         streamhandler.setFormatter(Formatter())
         streamhandler.addFilter(Filter())
         # Add file handler

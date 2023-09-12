@@ -18,4 +18,4 @@ class DataChunk(Subset):
             raise AttributeError("Dataset has no attributes 'targets'")
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(size={self.size}, eq_dist={self.eq_dist})'
+        return f'DataChunk(size={self.size}, eq_dist={self.eq_dist})'

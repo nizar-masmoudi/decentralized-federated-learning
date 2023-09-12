@@ -7,7 +7,7 @@ import torch.optim
 from torch.utils.data import Dataset
 from client.dataset.sampling import DataChunk
 
-from client.activation import Activator
+from client.activation.activators import Activator
 from client.aggregation import Aggregator
 from client.selection import PeerSelector
 from client.training import Trainer
@@ -43,20 +43,24 @@ class Client:
         self.selector = selector
         self.config = config
         self.wandb_logger = wandb_logger
+
+        logger.debug(repr(self.config.transmitter), extra={'client': self.id_})
+        logger.debug(repr(self.config.cpu), extra={'client': self.id_})
+        logger.debug(repr(self.trainer), extra={'client': self.id_})
+        logger.debug(repr(self.datachunk), extra={'client': self.id_})
         logger.debug(repr(self), extra={'client': self.id_})
 
     def __eq__(self, other: 'Client') -> bool:
         return self.id_ == other.id_
 
     def __repr__(self) -> str:
-        return f'Client(id={self.id_}, config={self.config})'
+        return repr(self.config)
 
     def __str__(self):
         return f'Client(id={self.id_})'
 
     def relocate(self):
         (lat_min, lon_min), (lat_max, lon_max) = self.config.geo_limits
-        location = self.config.location
         self.config.location = (random.uniform(lat_min, lat_max), random.uniform(lon_min, lon_max))
         logger.info(f'Client.relocate()={self.config.location}', extra={'client': self.id_})
 
@@ -66,6 +70,9 @@ class Client:
         logger.info('{}=[{}]'.format(f'Client.lookup({max_dist=})', ', '.join(str(neighbor) for neighbor in self.config.neighbors)), extra={'client': self.id_})
         return neighbors
 
+    def learning_slope(self):
+        return abs(self.config.loss_history[1] - self.config.loss_history[0])
+
     def computation_energy(self):
         local_epochs = self.trainer.args.local_epochs
         kappa = self.config.cpu.kappa
@@ -74,7 +81,7 @@ class Client:
         cpu_freq = self.config.cpu.frequency
         fpc = self.config.cpu.flops_per_cycle
         energy = local_epochs*kappa*flops*ds_size*(cpu_freq**2)/fpc
-        logger.debug(f'Client.computation_energy()={energy:.3f}J', extra={'client': self.id_})
+        logger.debug(f'Client.computation_energy()={energy:.3f}', extra={'client': self.id_})
         return energy
 
     def communication_energy(self, peer: 'Client', object_size: float):
@@ -82,14 +89,15 @@ class Client:
         bandwidth = self.config.transmitter.bandwidth
         psd = Client.dbm_to_mw(self.config.transmitter.psd)  # Convert dBm to mW
         distance = Client.distance(self, peer) * 1e3  # Convert km to meters
-        channel_gain = Client.channel_gain(self.config.transmitter.transmit_gain, self.config.transmitter.receive_gain, self.config.transmitter.signal_frequency, distance)
-        logger.debug(f'Client.channel_gain(peer={peer})={channel_gain:.3f}dB', extra={'client': self.id_})
+        channel_gain = Client.channel_gain(self.config.transmitter.transmit_gain, self.config.transmitter.receive_gain,
+                                           self.config.transmitter.signal_frequency, distance)
+        logger.debug(f'Client.channel_gain(peer={peer})={channel_gain:.3f}', extra={'client': self.id_})
         channel_gain = Client.dbm_to_mw(channel_gain)  # Convert dBm to mW
         r = bandwidth * math.log2(1 + (power * channel_gain) / (psd * bandwidth))
-        logger.debug(f'Client.transmission_rate(peer={peer})={r:.0e}bits/s', extra={'client': self.id_})
+        logger.debug(f'Client.transmission_rate(peer={peer})={r:.0e}', extra={'client': self.id_})
         t = object_size / r
         energy = t * Client.dbm_to_mw(power)
-        logger.debug(f'Client.communication_energy(peer={peer})={energy:.3e}J', extra={'client': self.id_})
+        logger.debug(f'Client.communication_energy(peer={peer})={energy:.3e}', extra={'client': self.id_})
         return energy
 
     def train(self, round_: int):
@@ -107,7 +115,11 @@ class Client:
         self.config.peers = self.selector.select(self.config.neighbors)
 
     def activate(self):
-        self.config.active = self.activator.activate()
+        if self.activator.__class__.__name__ == 'RandomActivator':
+            self.config.active = self.activator.activate()
+        elif self.activator.__class__.__name__ == 'EfficientActivator':
+            self.config.active = self.activator.activate(self, self.config.neighbors)
+        logger.info(f'Client.config.active={self.config.active}', extra={'client': self.id_})
 
     @staticmethod
     def distance(client1: 'Client', client2: 'Client') -> float:

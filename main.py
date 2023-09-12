@@ -9,9 +9,10 @@ from client.training import Trainer
 from client.training.arguments import TrainerArguments
 from client.aggregation import Aggregator
 from client.selection import PeerSelector
-from client.activation import Activator
+from client.activation import RandomActivator, EfficientActivator
 import torch
 from torchvision.datasets import MNIST
+import math
 from torchvision.transforms import ToTensor
 
 # Setup console logger
@@ -28,7 +29,7 @@ wandb_logger = WandbLogger(
 def main():
     # TODO: Write description
     parser = argparse.ArgumentParser(description='', formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('-c', '--clients', type=int, default=3, help='Number of clients.')
+    parser.add_argument('-c', '--clients', type=int, default=5, help='Number of clients.')
     parser.add_argument('-r', '--rounds', type=int, default=10, help='Number of rounds.')
     args = parser.parse_args()
 
@@ -49,7 +50,7 @@ def main():
         )
         aggregator = Aggregator(policy=Aggregator.AggregationPolicy.FEDAVG)
         selector = PeerSelector(policy=PeerSelector.SelectionPolicy.FULL)
-        activator = Activator(policy=Activator.ActivationPolicy.FULL)
+        activator = EfficientActivator(threshold=1, alpha=.5)
         # Initialize model & datasets
         model = ConvNet()
         datachunk = DataChunk(
@@ -61,18 +62,16 @@ def main():
         # Initialize client configuration
         config = ClientConfig(
             geo_limits=((36.897092, 10.152086), (36.870453, 10.219636)),
-            transmitter=Transmitter(power=20, bandwidth=20e6),
-            cpu=CPU(frequency=1e9, flops_per_cycle=4)
+            transmitter=Transmitter(),
+            cpu=CPU()
         )
         # Initialize client
         client = Client(model, datachunk, testset, trainer, aggregator, activator, selector, config, wandb_logger)
         clients.append(client)
 
     for client in clients:
-        client.lookup(clients, 9999)
-        client.computation_energy()
-        for neighbor in client.config.neighbors:
-            client.communication_energy(neighbor, 1e6)
+        client.lookup(clients, math.inf)
+        client.activate()
 
     wandb_logger.finish()
 

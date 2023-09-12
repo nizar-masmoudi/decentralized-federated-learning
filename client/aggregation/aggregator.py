@@ -19,7 +19,6 @@ class Aggregator:
     def __init__(self, policy: AggregationPolicy) -> None:
         self.id_ = next(Aggregator.inc)  # Auto-increment ID
         self.policy = policy
-        logger.debug(repr(self), extra={'client': self.id_})
 
     def __repr__(self):
         return f'Aggregator(id={self.id_}, policy={self.policy.name})'

@@ -19,13 +19,12 @@ class Trainer:
         self.id_ = next(Trainer.inc)  # Auto-increment ID
         self.args = args
         self.wandb_logger = wandb_logger
-        logger.debug(repr(self), extra={'client': self.id_})
 
         # W&B - Watch model
         # self.wandb_logger.watch(model=self.model, loss_fn=self.loss_fn, id_=self.id_)
 
     def __repr__(self):
-        return f'Trainer(id_={self.id_}, config={repr(self.args)})'
+        return repr(self.args)
 
     def loss_batch(self, model: torch.nn.Module, batch: tuple):
         inputs, labels = batch
