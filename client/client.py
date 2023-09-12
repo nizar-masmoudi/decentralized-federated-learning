@@ -1,7 +1,6 @@
 import itertools
 import logging
 import math
-from enum import IntEnum
 from typing import List, Dict
 
 import torch.optim
@@ -12,29 +11,15 @@ from client.activation import Activator
 from client.aggregation import Aggregator
 from client.selection import PeerSelector
 from client.training import Trainer
-from client.loggers import ConsoleLogger, WandbLogger
+from client.loggers import SystemLogger, WandbLogger
 from client.configuration import ClientConfig
 import random
 
-logging.setLoggerClass(ConsoleLogger)
+logging.setLoggerClass(SystemLogger)
 logger = logging.getLogger(__name__)
 
 
 class Client:
-    class AggregationPolicy(IntEnum):
-        FEDAVG = 0
-        MIXING = 1
-
-    class ClientActivationPolicy(IntEnum):
-        RANDOM = 0
-        FULL = 1
-        EFFICIENT = 2
-
-    class PeerSelectionPolicy(IntEnum):
-        RANDOM = 0
-        FULL = 1
-        EFFICIENT = 2
-
     inc = itertools.count(start=1)
 
     def __init__(self,
@@ -58,43 +43,53 @@ class Client:
         self.selector = selector
         self.config = config
         self.wandb_logger = wandb_logger
+        logger.debug(repr(self), extra={'client': self.id_})
 
     def __eq__(self, other: 'Client') -> bool:
         return self.id_ == other.id_
 
     def __repr__(self) -> str:
+        return f'Client(id={self.id_}, config={self.config})'
+
+    def __str__(self):
         return f'Client(id={self.id_})'
 
     def relocate(self):
         (lat_min, lon_min), (lat_max, lon_max) = self.config.geo_limits
         location = self.config.location
         self.config.location = (random.uniform(lat_min, lat_max), random.uniform(lon_min, lon_max))
-        logger.info(f'Client relocated from {location} to {self.config.location}', extra={'client': self.id_})
+        logger.info(f'Client.relocate()={self.config.location}', extra={'client': self.id_})
 
     def lookup(self, clients: List['Client'], max_dist: float) -> List['Client']:
         neighbors = [client for client in clients if (client != self) and Client.distance(self, client) < max_dist]
         self.config.neighbors = neighbors
-        logger.info('{}=[{}]'.format('Client.lookup(...)', ', '.join(repr(neighbor) for neighbor in self.config.neighbors)), extra={'client': self.id_})
+        logger.info('{}=[{}]'.format(f'Client.lookup({max_dist=})', ', '.join(str(neighbor) for neighbor in self.config.neighbors)), extra={'client': self.id_})
         return neighbors
 
     def computation_energy(self):
-        i = self.trainer.args.local_epochs
-        k = self.config.cpu.kappa
-        c = self.config.cpu.cycles
-        f = self.config.cpu.frequency
-        d = len(self.datachunk)
-        energy = i*k*c*d*(f**2)
-        logger.debug(f'Client.computation_energy(...)={energy}', extra={'client': self.id_})
+        local_epochs = self.trainer.args.local_epochs
+        kappa = self.config.cpu.kappa
+        flops = self.model.flops
+        ds_size = self.datachunk.size
+        cpu_freq = self.config.cpu.frequency
+        fpc = self.config.cpu.flops_per_cycle
+        energy = local_epochs*kappa*flops*ds_size*(cpu_freq**2)/fpc
+        logger.debug(f'Client.computation_energy()={energy:.3f}J', extra={'client': self.id_})
         return energy
 
     def communication_energy(self, peer: 'Client', object_size: float):
-        g = 1/Client.distance(self, peer)**2
-        p = self.config.transmitter.power
-        b = self.config.transmitter.bandwidth
-        n = self.config.transmitter.psd
-        s = object_size
-        energy = (s*p) / (b*math.log2(1 + (p*g) / (n*b)))
-        logger.debug(f'Client.communication_energy(...)={energy}', extra={'client': self.id_})
+        power = Client.dbm_to_mw(self.config.transmitter.power)  # Convert dBm to mW
+        bandwidth = self.config.transmitter.bandwidth
+        psd = Client.dbm_to_mw(self.config.transmitter.psd)  # Convert dBm to mW
+        distance = Client.distance(self, peer) * 1e3  # Convert km to meters
+        channel_gain = Client.channel_gain(self.config.transmitter.transmit_gain, self.config.transmitter.receive_gain, self.config.transmitter.signal_frequency, distance)
+        logger.debug(f'Client.channel_gain(peer={peer})={channel_gain:.3f}dB', extra={'client': self.id_})
+        channel_gain = Client.dbm_to_mw(channel_gain)  # Convert dBm to mW
+        r = bandwidth * math.log2(1 + (power * channel_gain) / (psd * bandwidth))
+        logger.debug(f'Client.transmission_rate(peer={peer})={r:.0e}bits/s', extra={'client': self.id_})
+        t = object_size / r
+        energy = t * Client.dbm_to_mw(power)
+        logger.debug(f'Client.communication_energy(peer={peer})={energy:.3e}J', extra={'client': self.id_})
         return energy
 
     def train(self, round_: int):
@@ -137,3 +132,11 @@ class Client:
         distance = radius * c
 
         return distance
+
+    @staticmethod
+    def dbm_to_mw(value: float) -> float:
+        return 10 ** ((value - 30) / 10)
+
+    @staticmethod
+    def channel_gain(transmit_gain: float, receive_gain: float, signal_frequency: float, distance: float) -> float:
+        return transmit_gain + receive_gain + 20 * math.log10(3e8 / (4 * math.pi * signal_frequency)) - 20 * math.log10(distance)

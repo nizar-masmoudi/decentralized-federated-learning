@@ -2,20 +2,27 @@ from enum import IntEnum
 from typing import List, Dict
 import logging
 import torch
-from client.loggers.console import ConsoleLogger
+from client.loggers.system import SystemLogger
+import itertools
 
-logging.setLoggerClass(ConsoleLogger)
+logging.setLoggerClass(SystemLogger)
 logger = logging.getLogger(__name__)
 
 
 class Aggregator:
+    inc = itertools.count(start=1)
+
     class AggregationPolicy(IntEnum):
         FEDAVG = 0
         MIXING = 1
 
-    def __init__(self, id_: int, policy: AggregationPolicy) -> None:
-        self.id_ = id_
+    def __init__(self, policy: AggregationPolicy) -> None:
+        self.id_ = next(Aggregator.inc)  # Auto-increment ID
         self.policy = policy
+        logger.debug(repr(self), extra={'client': self.id_})
+
+    def __repr__(self):
+        return f'Aggregator(id={self.id_}, policy={self.policy.name})'
 
     def aggregate(self, state_dicts: List[Dict]) -> Dict:
         if self.policy == Aggregator.AggregationPolicy.FEDAVG:

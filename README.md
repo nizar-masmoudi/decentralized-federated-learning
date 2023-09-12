@@ -20,6 +20,9 @@
 ├── [.env]
 └── .env.template
 ```
+## Resources
+- [A Safe Deep Reinforcement Learning Approach for Energy Efficient Federated Learning in Wireless Communication Networks](https://arxiv.org/pdf/2308.10664.pdf)
+- [Federated Learning for Energy-balanced Client Selection in Mobile Edge Computing](file:///C:/Users/nizar/Downloads/Federated_Learning_for_Energy-balanced_Client_Selection_in_Mobile_Edge_Computing.pdf)
 
 ## TODO
 - [ ] Implement energy consumption calculator

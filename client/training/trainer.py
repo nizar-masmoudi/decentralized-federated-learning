@@ -3,22 +3,29 @@ import torch
 from client.dataset.loaders import DeviceDataLoader
 from torch.utils.data import DataLoader, random_split
 import logging
-from client.loggers import ConsoleLogger, WandbLogger
+from client.loggers import SystemLogger, WandbLogger
 from client.training.arguments import TrainerArguments
+import itertools
 from client.dataset.sampling import DataChunk
 
-logging.setLoggerClass(ConsoleLogger)
+logging.setLoggerClass(SystemLogger)
 logger = logging.getLogger(__name__)
 
 
 class Trainer:
-    def __init__(self, id_: int, args: TrainerArguments, wandb_logger: WandbLogger) -> None:
-        self.id_ = id_
+    inc = itertools.count(start=1)
+
+    def __init__(self, args: TrainerArguments, wandb_logger: WandbLogger) -> None:
+        self.id_ = next(Trainer.inc)  # Auto-increment ID
         self.args = args
         self.wandb_logger = wandb_logger
+        logger.debug(repr(self), extra={'client': self.id_})
 
         # W&B - Watch model
         # self.wandb_logger.watch(model=self.model, loss_fn=self.loss_fn, id_=self.id_)
+
+    def __repr__(self):
+        return f'Trainer(id_={self.id_}, config={repr(self.args)})'
 
     def loss_batch(self, model: torch.nn.Module, batch: tuple):
         inputs, labels = batch

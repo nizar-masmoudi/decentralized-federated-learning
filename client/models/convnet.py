@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from ptflops import get_model_complexity_info
 
 
 class ConvNet(nn.Module):
@@ -17,6 +18,11 @@ class ConvNet(nn.Module):
         self.relu3 = nn.ReLU()
         self.dropout3 = nn.Dropout(.5)
         self.fc4 = nn.Linear(50, 10)
+
+    @property
+    def flops(self):
+        macs, _ = get_model_complexity_info(ConvNet(), (1, 28, 28), False, False)
+        return 2*macs
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.conv1(x)
