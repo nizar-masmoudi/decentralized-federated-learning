@@ -4,7 +4,7 @@ from client.dataset.loaders import DeviceDataLoader
 from torch.utils.data import DataLoader, random_split
 import logging
 from client.loggers import SystemLogger, WandbLogger
-from client.training.arguments import TrainerArguments
+from client.training.arguments import NetworkTrainerArguments, SelectionTrainerArguments
 import itertools
 from client.dataset.sampling import DataChunk
 
@@ -12,11 +12,11 @@ logging.setLoggerClass(SystemLogger)
 logger = logging.getLogger(__name__)
 
 
-class Trainer:
+class NetworkTrainer:
     inc = itertools.count(start=1)
 
-    def __init__(self, args: TrainerArguments, wandb_logger: WandbLogger) -> None:
-        self.id_ = next(Trainer.inc)  # Auto-increment ID
+    def __init__(self, args: NetworkTrainerArguments, wandb_logger: WandbLogger) -> None:
+        self.id_ = next(NetworkTrainer.inc)  # Auto-increment ID
         self.args = args
         self.wandb_logger = wandb_logger
 
@@ -40,7 +40,7 @@ class Trainer:
             self.args.init_optim(model)
 
         # Split data for training and validation
-        train_ds, valid_ds = Trainer.train_valid_split(datachunk, valid_split=self.args.valid_split)
+        train_ds, valid_ds = NetworkTrainer.train_valid_split(datachunk, valid_split=self.args.valid_split)
 
         # Prepare dataloaders
         train_dl = DeviceDataLoader(DataLoader(train_ds, batch_size=self.args.batch_size, shuffle=True), self.args.device)
@@ -97,3 +97,17 @@ class Trainer:
         valid_split = int((1 - valid_split) * len(datachunk))
         train_split = len(datachunk) - valid_split
         return random_split(datachunk, [valid_split, train_split])
+
+
+class SelectionTrainer:
+    inc = itertools.count(start=1)
+
+    def __init__(self, args: SelectionTrainerArguments):
+        self.id_ = next(SelectionTrainer.inc)  # Auto-increment ID
+        self.args = args
+
+    def __repr__(self):
+        return repr(self.args)
+
+    def train(self, model: torch.nn.Module, energy: torch.Tensor, gain: torch.Tensor):
+        pass

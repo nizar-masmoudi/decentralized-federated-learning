@@ -16,7 +16,9 @@ class Activator:
         self.id_ = next(Activator.inc)  # Auto-increment ID
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(id={self.id_})'
+        return (f'{self.__class__.__name__}(' +
+                ', '.join([f'{attr}={value}' for attr, value in vars(self).items() if attr != 'id_'])
+                + ')')
 
     def activate(self, *args, **kwargs):
         ...

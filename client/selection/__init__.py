@@ -1,1 +1,1 @@
-from client.selection.selector import PeerSelector
+from client.selection.selector import RandomPeerSelector, EfficientPeerSelector

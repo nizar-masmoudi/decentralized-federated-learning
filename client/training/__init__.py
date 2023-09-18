@@ -1,1 +1,1 @@
-from client.training.trainer import Trainer
+from client.training.trainers import NetworkTrainer

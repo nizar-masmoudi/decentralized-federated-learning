@@ -5,15 +5,17 @@ from client.models import ConvNet
 from client.loggers import SystemLogger, WandbLogger
 from client.dataset.sampling import DataChunk
 from client.configuration import ClientConfig, Transmitter, CPU
-from client.training import Trainer
-from client.training.arguments import TrainerArguments
+from client.training import NetworkTrainer
+from client.training.arguments import NetworkTrainerArguments
 from client.aggregation import Aggregator
-from client.selection import PeerSelector
+from client.selection import EfficientPeerSelector
 from client.activation import RandomActivator, EfficientActivator
 import torch
 from torchvision.datasets import MNIST
 import math
 from torchvision.transforms import ToTensor
+import os
+import os.path as osp
 
 # Setup console logger
 logging.setLoggerClass(SystemLogger)
@@ -37,8 +39,8 @@ def main():
     clients = []
     for id_ in range(1, args.clients+1):
         # Initialize modules
-        trainer = Trainer(
-            args=TrainerArguments(
+        trainer = NetworkTrainer(
+            args=NetworkTrainerArguments(
                 batch_size=32,
                 loss_fn=torch.nn.CrossEntropyLoss(),
                 local_epochs=3,
@@ -49,16 +51,16 @@ def main():
             wandb_logger=wandb_logger
         )
         aggregator = Aggregator(policy=Aggregator.AggregationPolicy.FEDAVG)
-        selector = PeerSelector(policy=PeerSelector.SelectionPolicy.FULL)
+        selector = EfficientPeerSelector()
         activator = EfficientActivator(threshold=1, alpha=.5)
         # Initialize model & datasets
         model = ConvNet()
         datachunk = DataChunk(
-            MNIST(root='data', train=True, transform=ToTensor(), download=True),
+            MNIST(root=osp.join(os.environ['BASE_PATH'], 'data'), train=True, transform=ToTensor(), download=True),
             size=1024,
             eq_dist=True
         )
-        testset = MNIST(root='data', train=False, transform=ToTensor(), download=True)
+        testset = MNIST(root=osp.join(os.environ['BASE_PATH'], 'data'), train=False, transform=ToTensor(), download=True)
         # Initialize client configuration
         config = ClientConfig(
             geo_limits=((36.897092, 10.152086), (36.870453, 10.219636)),

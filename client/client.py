@@ -9,8 +9,8 @@ from client.dataset.sampling import DataChunk
 
 from client.activation.activators import Activator
 from client.aggregation import Aggregator
-from client.selection import PeerSelector
-from client.training import Trainer
+from client.selection.selector import PeerSelector
+from client.training import NetworkTrainer
 from client.loggers import SystemLogger, WandbLogger
 from client.configuration import ClientConfig
 import random
@@ -26,7 +26,7 @@ class Client:
                  model: torch.nn.Module,
                  datachunk: DataChunk,
                  testset: torch.utils.data.Dataset,
-                 trainer: Trainer,
+                 trainer: NetworkTrainer,
                  aggregator: Aggregator,
                  activator: Activator,
                  selector: PeerSelector,

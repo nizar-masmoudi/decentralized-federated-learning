@@ -6,7 +6,7 @@
 ├── client/
 │   ├── models/               # Contains different model architectures for testing 
 │   ├── trainer/
-│   │   └── trainer.py        # Contains local training script 
+│   │   └── networktrainer.py        # Contains local training script 
 │   ├── aggregator/
 │   │   └── aggregator.py     # Contains model aggregation policies
 │   ├── selector/
