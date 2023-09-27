@@ -24,7 +24,8 @@ logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 # Setup loggers
 logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)
-wandb_logger = WandbLogger(project='Lightning-MNIST')
+
+wandb_logger = WandbLogger(project='decentralized-federated-learning', group='IID', name='vanilla')
 
 
 def main():
@@ -40,7 +41,7 @@ def main():
     test_ds = MNIST(root='data', train=False, transform=ToTensor(), download=True)
 
     clients = []
-    for i in range(args.clients):
+    for _ in range(args.clients):
         activator = FullActivator()
         aggregator = FedAvg()
         selector = FullPeerSelector()
@@ -49,7 +50,7 @@ def main():
             Client(
                 geo_limits=((36.897092, 10.152086), (36.870453, 10.219636)),
                 model=LightningConvNet(),
-                train_ds=DataChunk(dataset, 10000, True),
+                train_ds=DataChunk(dataset, len(dataset)//args.clients, True),
                 test_ds=test_ds,
                 local_epochs=3,
                 batch_size=16,
@@ -59,6 +60,12 @@ def main():
                 wandb_logger=wandb_logger
             )
         )
+
+        wandb_logger.experiment.config.update({
+            'Activation': 'Full',
+            'Aggregation': 'FedAvg',
+            'Selection': 'Full',
+        })
 
     for round_ in range(args.rounds):
         logger.info('Round [{:>2}/{:>2}] started'.format(round_ + 1, args.rounds))

@@ -78,6 +78,7 @@ class LightningConvNet(LightningModule):
         self.training_step_outputs = {'loss': [], 'acc': []}
         self.validation_step_outputs = {'loss': [], 'acc': []}
         self.test_step_outputs = {'loss': [], 'acc': []}
+        self.current_round = 1
 
         self.loss_history = (math.inf, math.inf)
 
@@ -85,7 +86,7 @@ class LightningConvNet(LightningModule):
         self.size_bytes = summary.size_bytes
         self.flops = sum(self.model.count_flops())
 
-        self.round_ = 1
+        self.save_hyperparameters()
 
     def __repr__(self):
         summary = get_module_summary(self)
@@ -109,10 +110,6 @@ class LightningConvNet(LightningModule):
         acc = self.accuracy(outputs, targets)
         self.training_step_outputs['loss'].append(loss)
         self.training_step_outputs['acc'].append(acc)
-        self.log_dict({
-            f'train_loss/{self.id_}': loss,
-            f'train_acc/{self.id_}': acc,
-        }, False, True, False, True)
         return loss
 
     def validation_step(self, batch: tuple, batch_idx: int) -> torch.float:
@@ -122,10 +119,6 @@ class LightningConvNet(LightningModule):
         acc = self.accuracy(outputs, targets)
         self.validation_step_outputs['loss'].append(loss)
         self.validation_step_outputs['acc'].append(acc)
-        self.log_dict({
-            f'valid_loss/{self.id_}': loss,
-            f'valid_acc/{self.id_}': acc,
-        }, False, True, False, True)
         return loss
 
     def test_step(self, batch: tuple, batch_idx: int) -> torch.float:
@@ -135,10 +128,6 @@ class LightningConvNet(LightningModule):
         acc = self.accuracy(outputs, targets)
         self.test_step_outputs['loss'].append(loss)
         self.test_step_outputs['acc'].append(acc)
-        self.log_dict({
-            f'c{self.id_}/test/loss': loss,
-            f'c{self.id_}/test/acc': acc,
-        }, False, True, False, True)
         return loss
 
     def configure_optimizers(self):
@@ -146,7 +135,7 @@ class LightningConvNet(LightningModule):
 
     # Hooks
     def on_train_epoch_end(self) -> None:
-        # Gather and report
+        # Gather
         toutputs = self.training_step_outputs
         voutputs = self.validation_step_outputs
         epoch_tloss = torch.tensor(toutputs['loss']).mean()
@@ -155,7 +144,13 @@ class LightningConvNet(LightningModule):
         epoch_vacc = torch.tensor(voutputs['acc']).mean()
         self.training_step_outputs = {'loss': [], 'acc': []}
         self.validation_step_outputs = {'loss': [], 'acc': []}
-        self.log('gepoch', (self.current_epoch + 1) + (self.round_ - 1) * self.trainer.max_epochs)
+        # Report
+        self.logger.log_metrics({
+            f'train/loss/{self.id_}': epoch_tloss,
+            f'train/acc/{self.id_}': epoch_tacc,
+            f'valid/loss/{self.id_}': epoch_vloss,
+            f'valid/acc/{self.id_}': epoch_vacc,
+        }, step=(self.current_epoch + 1) + (self.current_round - 1) * self.trainer.max_epochs)
         logger.info(
             'Epoch [{:>2}/{:>2}] - '.format(self.current_epoch + 1, self.trainer.max_epochs) +
             'Training loss = {:.3f} - Training accuracy = {:.3f} - '.format(epoch_tloss, epoch_tacc) +
@@ -164,7 +159,7 @@ class LightningConvNet(LightningModule):
         )
 
     def on_train_end(self) -> None:
-        self.round_ += 1
+        self.current_round += 1
 
     def on_test_end(self) -> None:
         # Gather
@@ -173,6 +168,10 @@ class LightningConvNet(LightningModule):
         avg_acc = torch.tensor(outputs['acc']).mean()
         self.test_step_outputs = {'loss': [], 'acc': []}
         # Report
+        self.logger.log_metrics({
+            f'test/loss/{self.id_}': avg_loss,
+            f'test/acc/{self.id_}': avg_acc,
+        }, step=(self.current_epoch + 1) + (self.current_round - 1) * self.trainer.max_epochs)
         logger.info('Test loss = {:.3f} - Test accuracy = {:.3f}'.format(avg_loss, avg_acc), extra={'id': self.id_})
         # Update slope
         self.loss_history = (self.loss_history[1], avg_loss)
