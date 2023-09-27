@@ -1,1 +1,3 @@
-from client.activation.activators import RandomActivator, EfficientActivator
+from client.activation.activator import FullActivator, RandActivator
+from client.activation.efficient import EfficientActivator
+from client.activation.convergence_based import ConvergenceBasedActivator
