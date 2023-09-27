@@ -1,0 +1,7 @@
+torch==2.0.1
+lightning==2.0.9
+torchmetrics==1.2.0
+torchtnt==0.2.0
+numpy==1.26.0
+torchvision==0.15.2
+python-dotenv==1.0.0
