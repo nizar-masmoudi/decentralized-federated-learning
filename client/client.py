@@ -113,7 +113,7 @@ class Client:
         self.location = (random.uniform(lat_min, lat_max), random.uniform(lon_min, lon_max))
         logger.info('Client relocated to {}, {}'.format(*self.location), extra={'id': self.id_})
 
-    def lookup(self, clients: List['Client'], max_dist: float = math.inf) -> List['Client']:
+    def lookup(self, clients: List['Client'], max_dist: float = math.inf):
         """
         Lookup clients within communication distance.
         :param clients: List of all clients.
