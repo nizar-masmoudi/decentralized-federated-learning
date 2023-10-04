@@ -86,6 +86,13 @@ class LightningConvNet(LightningModule):
         self.size_bytes = summary.size_bytes
         self.flops = sum(self.model.count_flops())
 
+        self.train_history = {
+            'tloss': [],
+            'vloss': [],
+            'tacc': [],
+            'vacc': [],
+        }
+
         self.save_hyperparameters()
 
     def __repr__(self):
@@ -142,6 +149,10 @@ class LightningConvNet(LightningModule):
         epoch_tacc = torch.tensor(toutputs['acc']).mean()
         epoch_vloss = torch.tensor(voutputs['loss']).mean()
         epoch_vacc = torch.tensor(voutputs['acc']).mean()
+        self.train_history['tloss'].append(epoch_tloss.item())
+        self.train_history['vloss'].append(epoch_vloss.item())
+        self.train_history['tacc'].append(epoch_tacc.item())
+        self.train_history['vacc'].append(epoch_vacc.item())
         self.training_step_outputs = {'loss': [], 'acc': []}
         self.validation_step_outputs = {'loss': [], 'acc': []}
         # Report

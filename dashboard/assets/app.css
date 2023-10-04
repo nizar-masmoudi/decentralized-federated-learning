@@ -1,0 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+body {
+  background-color: #1c2128;
+  font-family: 'Poppins', sans-serif;
+  color: #adbac7;
+  overflow: hidden;
+}
+
+/* Hide scrollbar */
+body::-webkit-scrollbar{
+  display: none;
+}
+
+/* Hide Plotly controls */
+.modebar{
+  display: none !important;
+}
+
+/* BooleanSwitch style */
+.cmSQpo {
+    background-color: #1c2128 !important;
+    border: solid #444c56 2px !important;
+    height: 15px !important;
+    width: 35px !important;
+}
+
+.cNyvJz {
+    background-color: #444c56 !important;
+    border: solid #444c56 2px !important;
+    height: 15px !important;
+    width: 35px !important;
+}
+
+.igrnnx {
+    background-color: #adbac7 !important;
+    width: 15px !important;
+    height: 15px !important;
+}
+
+.dlqMgb {
+    background-color: #adbac7 !important;
+    border: none !important;
+    width: 15px !important;
+    height: 15px !important;
+}
+
+.daq-booleanswitch--light__background {
+    box-sizing: content-box;
+}
+
+/* Style radio buttons */
+input[type="radio"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: var(--form-background);
+
+  font: inherit;
+  color: #adbac7;
+  width: 12px;
+  height: 12px;
+  border: 1px solid #adbac7;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+input[type="radio"]:checked {
+  transform: scale(1);
+  background-color: #adbac7;
+}
+
+/* Style dropdown */
+.Select-control {
+    height: 12px !important;
+}

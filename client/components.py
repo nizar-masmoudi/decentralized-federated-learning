@@ -20,7 +20,7 @@ class RandomFactory:
         """
         Generate random value.
         """
-        return np.random.choice(np.arange(self.min_, self.max_ + 1, self.step, dtype=self.dtype))
+        return self.dtype(np.random.choice(np.arange(self.min_, self.max_ + self.step, self.step)))
 
 
 @dataclasses.dataclass

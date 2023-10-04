@@ -1,5 +1,4 @@
 import itertools
-from client.models import LightningConvNet
 from client.dataset.utils import train_valid_split
 from torch.utils.data import Dataset, DataLoader, Subset
 from client.components import CPU, Transmitter
@@ -13,9 +12,9 @@ from lightning.pytorch import Trainer
 from client.activation.activator import Activator
 from client.aggregation.aggregator import Aggregator
 from client.selection.selector import PeerSelector
-from typing import Tuple
+from typing import Tuple, Literal
 from lightning.pytorch.loggers import WandbLogger
-
+from client.dataset.sampling import DataChunk
 
 logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)
@@ -32,7 +31,7 @@ class Client:
             *,
             geo_limits: Tuple[Tuple, Tuple],
             model: LightningModule,
-            train_ds: Subset,
+            train_ds: DataChunk,
             test_ds: Dataset,
             local_epochs: int,
             batch_size: int = 32,
@@ -83,6 +82,8 @@ class Client:
         self.neighbors: List['Client'] = []
         self.peers: List['Client'] = []
         self.is_active = False
+
+        self.simulation_dict = None
 
         self.wandb_logger = wandb_logger
 
@@ -207,6 +208,46 @@ class Client:
         logger.info('Client selected {} peers: {}'.format(len(peers), peers_str), extra={'id': self.id_})
         self.peers = peers
 
+    def update_dict(self):
+        if self.simulation_dict is None:
+            self.simulation_dict = {self.id_: {
+                'activator': self.activator.__class__.__name__,
+                'aggregator': self.aggregator.__class__.__name__,
+                'selector': self.selector.__class__.__name__,
+                'local_epochs': self.local_epochs,
+                'batch_size': self.batch_size,
+                'locations': [],
+                'activity': [],
+                'neighbors': [],
+                'peers': [],
+                'tloss': [],
+                'vloss': [],
+                'tacc': [],
+                'vacc': [],
+                'cpu': {
+                    'fpc': self.cpu.fpc,
+                    'frequency': self.cpu.frequency,
+                    'kappa': self.cpu.kappa
+                },
+                'transmitter': {
+                    'power': self.transmitter.power,
+                    'bandwidth': self.transmitter.bandwidth,
+                    'psd': self.transmitter.psd,
+                    'signal_frequency': self.transmitter.signal_frequency,
+                    'transmit_gain': self.transmitter.transmit_gain,
+                    'receive_gain': self.transmitter.receive_gain
+                },
+                'distribution': self.train_ds.class_dist()
+            }}
+        self.simulation_dict[self.id_]['locations'].append(list(self.location))
+        self.simulation_dict[self.id_]['activity'].append(self.is_active)
+        self.simulation_dict[self.id_]['neighbors'].append([str(neighbor.id_) for neighbor in self.neighbors])
+        self.simulation_dict[self.id_]['peers'].append([str(peer.id_) for peer in self.peers])
+        self.simulation_dict[self.id_]['tloss'] = self.model.train_history['tloss']
+        self.simulation_dict[self.id_]['vloss'] = self.model.train_history['vloss']
+        self.simulation_dict[self.id_]['tacc'] = self.model.train_history['tacc']
+        self.simulation_dict[self.id_]['vacc'] = self.model.train_history['vacc']
+
     # Utilities
     @staticmethod
     def distance(client1: 'Client', client2: 'Client') -> float:
@@ -243,3 +284,17 @@ class Client:
     @staticmethod
     def dbm_to_mw(dbm: float):
         return 10 ** ((dbm - 30) / 10)
+
+    @staticmethod
+    def fill_gaps(input_list: list, mask: list):
+        p = []
+        i = 0
+        last_item = input_list[0]
+        for m in mask:
+            if m:
+                p += input_list[i:i+3]
+                last_item = input_list[i+2]
+                i += 3
+            else:
+                p += [last_item]*3
+        return p

@@ -1,6 +1,7 @@
 from torch.utils.data import Dataset, Subset
 import torch
 from torch.utils.data import WeightedRandomSampler
+from collections import Counter
 
 
 class DataChunk(Subset):
@@ -14,6 +15,7 @@ class DataChunk(Subset):
                 class_weights = torch.ones(size=(len(unique_targets),))
             else:
                 class_weights = torch.rand(size=(len(unique_targets),))
+
             sample_weights = getattr(dataset, 'targets').type(torch.float16).apply_(lambda t: class_weights[int(t)])
             indices = list(WeightedRandomSampler(sample_weights, size, replacement=False))
             super().__init__(dataset, indices)
@@ -22,3 +24,10 @@ class DataChunk(Subset):
 
     def __repr__(self):
         return f'DataChunk(size={self.size}, balanced_sampling={self.balanced_sampling})'
+
+    def class_dist(self):
+        if hasattr(self.dataset, 'targets'):
+            class_distribution = Counter(self.dataset.targets[i].item() for i in self.indices).values()
+            return list(class_distribution)
+        else:
+            raise AttributeError("Dataset has no attributes 'targets'")
