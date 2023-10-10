@@ -10,3 +10,4 @@ from dashboard.components.localaccuracy import LocalAccuracyAIO
 from dashboard.components.globalaccuracy import GlobalAccuracyAIO
 from dashboard.components.modal import ModalAIO
 from dashboard.components.communication import CommunicationEnergyAIO
+from dashboard.components.indicator import IndicatorAIO

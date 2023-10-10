@@ -1,7 +1,7 @@
 from dash import Dash, html, dcc
 from components import (SidebarAIO, HeaderAIO, TopologyAIO, DistributionAIO, ActivityAIO, SelectionAIO,
                         LocalLossAIO, GlobalLossAIO, LocalAccuracyAIO, GlobalAccuracyAIO, ModalAIO,
-                        CommunicationEnergyAIO)
+                        CommunicationEnergyAIO, IndicatorAIO)
 
 
 app = Dash(__name__, external_scripts=['https://cdn.tailwindcss.com'])
@@ -28,7 +28,8 @@ app.layout = html.Div([
                 GlobalAccuracyAIO()
             ], className='flex space-x-7'),
             html.Span([
-                CommunicationEnergyAIO()
+                CommunicationEnergyAIO(),
+                IndicatorAIO(),
             ], className='flex space-x-7')
         ], className='flex flex-col space-y-7 w-full min-h-screen p-7 pl-[268px]')
     ], className='relative w-full h-full overflow-hidden')
