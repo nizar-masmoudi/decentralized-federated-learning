@@ -13,11 +13,12 @@ logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)
 
 
-# def minmaxscale(feature: list, min_: float, max_: float):
-#     scaled = np.ones(len(feature))
-#     if min_ != max_:
-#         scaled = (np.array(feature) - min_) / max_ - min_
-#     return scaled.tolist()
+def minmaxscale(feature: list, min_: float, max_: float):
+    scaled = np.ones(len(feature))
+    if min_ != max_:
+        scaled = (np.array(feature) - min_) / max_ - min_
+    return scaled.tolist()
+
 
 class CustomEarlyStopping:
     def __init__(self, patience: int, delta: float):
@@ -63,14 +64,18 @@ class EfficientPeerSelector(PeerSelector):
         self.log_interval = log_interval
 
     def select(self, client: 'cl.Client') -> List['cl.Client']:
+        selected_neighbors = list(filter(
+            lambda neighbor: (neighbor.model.loss_history[1] - client.model.loss_history[1]) > 0,
+            client.neighbors
+        ))
+
         # Get positive knowledge gain for each neighbor
-        kgain = [(neighbor.model.loss_history[1] - client.model.loss_history[1]) for neighbor in client.neighbors]
-        # kgain = list(filter(lambda v: v > 0, kgain)) FIXME
+        kgain = [(neighbor.model.loss_history[1] - client.model.loss_history[1]) for neighbor in selected_neighbors]
+        sc_kgain = [min(kg, 1) for kg in kgain]
         # Get communication energy for each neighbor
-        energy = [client.communication_energy(neighbor) for neighbor in client.neighbors]
-        # Scale data
-        sc_kgain = MinMaxScaler().fit_transform(np.array(kgain).reshape(-1, 1)).flatten().tolist()
-        sc_energy = MinMaxScaler().fit_transform(np.array(energy).reshape(-1, 1)).flatten().tolist()
+        energy = [client.communication_energy(neighbor) for neighbor in selected_neighbors]
+        sc_energy = minmaxscale(energy, 0, client.communication_energy(distance=client.lookup_dist))
+
         # Get tensors
         t_kgain = torch.tensor(sc_kgain)
         t_energy = torch.tensor(sc_energy)

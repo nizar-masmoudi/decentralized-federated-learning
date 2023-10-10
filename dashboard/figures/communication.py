@@ -1,8 +1,8 @@
 import plotly.graph_objects as go
-from dashboard.plots.layouts import LossLayout
+from dashboard.figures.layouts import LinePlotLayout
 
 
-class LossPlot(go.Figure):
+class CommunicationEnergyFigure(go.Figure):
     def __init__(self, x: list = None, ys: dict = None):
         if x is None:
             x = []
@@ -15,9 +15,12 @@ class LossPlot(go.Figure):
                     go.Scatter(
                         x=x,
                         y=y,
+                        customdata=[v*1e6 for v in y],
                         mode='markers+lines',
-                        hovertemplate='%{y:.3f}<extra></extra>',
-                        name=f'Client {id_}'
+                        hovertemplate='Energy = %{customdata:.0f} µJ<extra></extra>',
                     )
                 )
-        super().__init__(data, LossLayout())
+
+        layout = LinePlotLayout()
+
+        super().__init__(data, layout)

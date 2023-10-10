@@ -1,6 +1,6 @@
 import itertools
 from client.dataset.utils import train_valid_split
-from torch.utils.data import Dataset, DataLoader, Subset
+from torch.utils.data import Dataset, DataLoader
 from client.components import CPU, Transmitter
 from client.logger import ConsoleLogger
 from lightning.pytorch import LightningModule
@@ -12,8 +12,7 @@ from lightning.pytorch import Trainer
 from client.activation.activator import Activator
 from client.aggregation.aggregator import Aggregator
 from client.selection.selector import PeerSelector
-from typing import Tuple, Literal
-from lightning.pytorch.loggers import WandbLogger
+from typing import Tuple
 from client.dataset.sampling import DataChunk
 
 logging.setLoggerClass(ConsoleLogger)
@@ -41,7 +40,6 @@ class Client:
             activator: Activator,
             aggregator: Aggregator,
             selector: PeerSelector,
-            wandb_logger: WandbLogger,
     ):
         """
         Initialize a client.
@@ -78,14 +76,13 @@ class Client:
         self.selector = selector
 
         self.geo_limits = geo_limits
+        self.lookup_dist = math.inf
         self.location = (0., 0.)
         self.neighbors: List['Client'] = []
         self.peers: List['Client'] = []
         self.is_active = False
 
         self.simulation_dict = None
-
-        self.wandb_logger = wandb_logger
 
         # Initial location
         self.relocate()
@@ -114,14 +111,14 @@ class Client:
         self.location = (random.uniform(lat_min, lat_max), random.uniform(lon_min, lon_max))
         logger.info('Client relocated to {}, {}'.format(*self.location), extra={'id': self.id_})
 
-    def lookup(self, clients: List['Client'], max_dist: float = math.inf):
+    def lookup(self, clients: List['Client']):
         """
         Lookup clients within communication distance.
         :param clients: List of all clients.
-        :param max_dist: maximum communication distance.
         :return: List of neighbors.
         """
-        neighbors = [client for client in clients if (client != self) and Client.distance(self, client) < max_dist]
+        neighbors = [client for client in clients
+                     if (client != self) and (Client.distance(self, client) < self.lookup_dist)]
         self.neighbors = neighbors
         nbrs_str = ', '.join(str(neighbor) for neighbor in self.neighbors)
         if self.neighbors:
@@ -147,13 +144,17 @@ class Client:
         logger.debug('Computation energy = {:.3f} mW'.format(energy * 1e3), extra={'id': self.id_})
         return energy
 
-    def communication_energy(self, peer: 'Client') -> float:
+    def communication_energy(self, peer: 'Client' = None, distance: float = None) -> float:
         """
         Calculate communication energy consumed by client when communicating with specified peer.
-        :param peer: Peer communication with client.
+        :param distance: Distance between client and peer (used only when peer is None).
+        :param peer: Peer communication with client (used only when distance is None).
         :return: Communication energy
         """
-        distance = Client.distance(self, peer)
+        if peer is None and distance is None:
+            raise ValueError('peer and distance cannot be both None.')
+
+        distance = Client.distance(self, peer) if peer else distance
         channel_gain = (self.transmitter.transmit_gain + self.transmitter.receive_gain +
                         20 * math.log10(3e8 / (4 * math.pi * self.transmitter.signal_frequency)) -
                         20 * math.log10(distance))
@@ -170,7 +171,7 @@ class Client:
         return energy
 
     def train(self):
-        trainer = Trainer(logger=self.wandb_logger, max_epochs=self.local_epochs, enable_checkpointing=False,
+        trainer = Trainer(max_epochs=self.local_epochs, enable_checkpointing=False,
                           log_every_n_steps=1, enable_model_summary=False, enable_progress_bar=False)
         logger.info('Local training process started', extra={'id': self.id_})
         train_ds, valid_ds = train_valid_split(self.train_ds, .1)
@@ -180,7 +181,7 @@ class Client:
         logger.info('Local training process ended', extra={'id': self.id_})
 
     def test(self):
-        trainer = Trainer(logger=self.wandb_logger, max_epochs=self.local_epochs, enable_checkpointing=False,
+        trainer = Trainer(max_epochs=self.local_epochs, enable_checkpointing=False,
                           log_every_n_steps=1, enable_model_summary=False, enable_progress_bar=False)
         logger.info('Model testing process started', extra={'id': self.id_})
         test_dl = DataLoader(self.test_ds, batch_size=32)
@@ -195,7 +196,7 @@ class Client:
         self.model.load_state_dict(agg_state)
         logger.info('Model aggregation process ended', extra={'id': self.id_})
 
-    def activate(self, alpha: float = 1, budget: float = .5):
+    def activate(self):
         logger.info('Client activation process started', extra={'id': self.id_})
         is_active = self.activator.activate()
         logger.info('Client has been activated' if is_active else 'Client has been deactivate', extra={'id': self.id_})
@@ -211,9 +212,17 @@ class Client:
     def update_dict(self):
         if self.simulation_dict is None:
             self.simulation_dict = {self.id_: {
-                'activator': self.activator.__class__.__name__,
-                'aggregator': self.aggregator.__class__.__name__,
-                'selector': self.selector.__class__.__name__,
+                'activation': {
+                    'policy': self.activator.__class__.__name__,
+                    **{k: v for k, v in vars(self.activator).items() if k != 'id_'}
+                },
+                'aggregation': {
+                    'policy': self.aggregator.__class__.__name__,
+                },
+                'selection': {
+                    'policy': self.selector.__class__.__name__,
+                    **{k: v for k, v in vars(self.selector).items() if k != 'id_'}
+                },
                 'local_epochs': self.local_epochs,
                 'batch_size': self.batch_size,
                 'locations': [],
@@ -237,16 +246,26 @@ class Client:
                     'transmit_gain': self.transmitter.transmit_gain,
                     'receive_gain': self.transmitter.receive_gain
                 },
-                'distribution': self.train_ds.class_dist()
+                'distribution': self.train_ds.class_dist(),
+                'comm_energy': [],
+                'comp_energy': [],
             }}
         self.simulation_dict[self.id_]['locations'].append(list(self.location))
         self.simulation_dict[self.id_]['activity'].append(self.is_active)
         self.simulation_dict[self.id_]['neighbors'].append([str(neighbor.id_) for neighbor in self.neighbors])
         self.simulation_dict[self.id_]['peers'].append([str(peer.id_) for peer in self.peers])
-        self.simulation_dict[self.id_]['tloss'] = self.model.train_history['tloss']
-        self.simulation_dict[self.id_]['vloss'] = self.model.train_history['vloss']
-        self.simulation_dict[self.id_]['tacc'] = self.model.train_history['tacc']
-        self.simulation_dict[self.id_]['vacc'] = self.model.train_history['vacc']
+        self.simulation_dict[self.id_]['tloss'] = self.model.round_summary['tloss']
+        self.simulation_dict[self.id_]['vloss'] = self.model.round_summary['vloss']
+        self.simulation_dict[self.id_]['sloss'] = self.model.round_summary['sloss']
+        self.simulation_dict[self.id_]['tacc'] = self.model.round_summary['tacc']
+        self.simulation_dict[self.id_]['vacc'] = self.model.round_summary['vacc']
+        self.simulation_dict[self.id_]['sacc'] = self.model.round_summary['sacc']
+        self.simulation_dict[self.id_]['comm_energy'].append(
+            sum(self.communication_energy(peer) for peer in self.peers) if self.is_active else 0
+        )
+        self.simulation_dict[self.id_]['comp_energy'].append(
+            self.computation_energy() if self.is_active else 0
+        )
 
     # Utilities
     @staticmethod

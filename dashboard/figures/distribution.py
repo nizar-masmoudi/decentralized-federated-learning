@@ -1,8 +1,8 @@
 import plotly.graph_objects as go
-from dashboard.plots.layouts import ClassDistLayout
+from dashboard.figures.layouts import BarPlotLayout
 
 
-class ClassDistPlot(go.Figure):
+class DistributionFigure(go.Figure):
     def __init__(self, x: list = None, y: list = None):
         if x is None:
             x = []
@@ -12,15 +12,15 @@ class ClassDistPlot(go.Figure):
         data = go.Bar(
             x=x,
             y=y,
-            text=x,
-            textfont=dict(
-                family='Poppins, sans-serif',
-                color='#adbac7'
-            ),
             marker=dict(
-                color='#176B87',
+                color='#FFCF00',
                 line=dict(width=0),
             ),
             hovertemplate='Count = %{y}<extra></extra>',
         )
-        super().__init__(data, ClassDistLayout())
+
+        layout = BarPlotLayout()
+        layout.xaxis.range = [-1, 10]
+        layout.yaxis.range = [0, 1500]
+        layout.xaxis.tickvals = list(range(0, 10))
+        super().__init__(data, layout)

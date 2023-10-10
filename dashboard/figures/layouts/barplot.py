@@ -1,7 +1,7 @@
 import plotly.graph_objects as go
 
 
-class ClassDistLayout(go.Layout):
+class BarPlotLayout(go.Layout):
     def __init__(self):
         super().__init__()
         self.autosize = True
@@ -11,15 +11,13 @@ class ClassDistLayout(go.Layout):
         self.xaxis = dict(
             color='rgba(68, 76, 86, 1)',
             tickfont=dict(
-                color='#444c56',
+                color='#7B91B0',
                 family='Poppins, sans-serif'
             ),
             showgrid=False,
             zeroline=False,
             showspikes=False,
-            showticklabels=False,
-            ticklabelposition='inside top',
-            range=[0, 11],
+
         )
         self.yaxis = dict(
             color='rgba(68, 76, 86, 1)',
@@ -27,19 +25,17 @@ class ClassDistLayout(go.Layout):
                 color='#444c56',
                 family='Poppins, sans-serif'
             ),
-            gridcolor='rgba(68, 76, 86, 1)',
-            griddash='solid',
+            showgrid=False,
             zeroline=False,
             fixedrange=True,
             mirror=True,
             showticklabels=False,
-            range=[0, 3500],
         )
         self.hoverlabel = dict(
-            bgcolor='#1a2226',
-            bordercolor='#1a2226',
+            bgcolor='white',
+            bordercolor='#EFF1F3',
             font_family='Poppins, sans-serif',
-            font_color='white',
+            font_color='#444A6D',
             font_size=12,
         )
         self.hovermode = 'x unified'

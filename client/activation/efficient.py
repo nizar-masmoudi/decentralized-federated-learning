@@ -1,5 +1,7 @@
 from client.activation.activator import Activator
+import numpy as np
 import client as cl
+from client.dataset.sampling import DataChunk
 
 
 class EfficientActivator(Activator):
@@ -11,18 +13,15 @@ class EfficientActivator(Activator):
     def activate(self, client: 'cl.Client') -> bool:
         # Computation energy consumption
         energy = client.computation_energy()
-        energies = [neighbor.computation_energy() for neighbor in client.neighbors] + [energy]
-        if max(energies) == min(energies):
-            scaled_energy = 0.
-        else:
-            scaled_energy = (energy - min(energies)) / (max(energies) - min(energies))
+        max_energy = (client.local_epochs * client.cpu.kappa * client.model.flops * DataChunk.MAX_SIZE *
+                      (client.cpu.MAX_FREQ ** 2) / client.cpu.fpc)
+        min_energy = 0
+        sc_energy = (energy - min_energy) / (max_energy - min_energy)
+
         # Learning slope
         slope = client.compute_lslope()
-        slopes = [neighbor.compute_lslope() for neighbor in client.neighbors] + [slope]
-        if max(slopes) == min(slopes):
-            scaled_slope = 1.
-        else:
-            scaled_slope = (energy - min(slopes)) / (max(slopes) - min(slopes))
+        sc_slope = min(slope, 1)
+
         # Activation cost
-        cost = self.alpha * scaled_energy + (1 - self.alpha) * (1 - scaled_slope)
+        cost = self.alpha * sc_energy + (1 - self.alpha) * (1 - sc_slope)
         return self.threshold > cost

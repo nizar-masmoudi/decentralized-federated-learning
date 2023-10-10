@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from lightning.pytorch import LightningModule
-from torchmetrics import Accuracy
+from torchmetrics import Accuracy, ConfusionMatrix
 from torchtnt.utils.flops import FlopTensorDispatchMode
 from torchtnt.utils.module_summary import get_module_summary
 from client.logger import ConsoleLogger
@@ -9,6 +9,7 @@ import logging
 import itertools
 import copy
 import math
+
 
 logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)
@@ -74,10 +75,11 @@ class LightningConvNet(LightningModule):
         self.loss_fn = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1)
         self.accuracy = Accuracy(task='multiclass', num_classes=10)
+        self.confusion_matrix = ConfusionMatrix(task='multiclass', num_classes=10)
 
         self.training_step_outputs = {'loss': [], 'acc': []}
         self.validation_step_outputs = {'loss': [], 'acc': []}
-        self.test_step_outputs = {'loss': [], 'acc': []}
+        self.test_step_outputs = {'loss': [], 'acc': [], 'cm': []}
         self.current_round = 1
 
         self.loss_history = (math.inf, math.inf)
@@ -86,11 +88,14 @@ class LightningConvNet(LightningModule):
         self.size_bytes = summary.size_bytes
         self.flops = sum(self.model.count_flops())
 
-        self.train_history = {
+        self.round_summary = {
             'tloss': [],
             'vloss': [],
+            'sloss': [],
             'tacc': [],
             'vacc': [],
+            'sacc': [],
+            'scm': None,
         }
 
         self.save_hyperparameters()
@@ -133,8 +138,10 @@ class LightningConvNet(LightningModule):
         outputs = self(inputs)
         loss = nn.CrossEntropyLoss()(outputs, targets)
         acc = self.accuracy(outputs, targets)
+        cm = self.confusion_matrix(outputs, targets)
         self.test_step_outputs['loss'].append(loss)
         self.test_step_outputs['acc'].append(acc)
+        self.test_step_outputs['cm'].append(cm)
         return loss
 
     def configure_optimizers(self):
@@ -149,10 +156,10 @@ class LightningConvNet(LightningModule):
         epoch_tacc = torch.tensor(toutputs['acc']).mean()
         epoch_vloss = torch.tensor(voutputs['loss']).mean()
         epoch_vacc = torch.tensor(voutputs['acc']).mean()
-        self.train_history['tloss'].append(epoch_tloss.item())
-        self.train_history['vloss'].append(epoch_vloss.item())
-        self.train_history['tacc'].append(epoch_tacc.item())
-        self.train_history['vacc'].append(epoch_vacc.item())
+        self.round_summary['tloss'].append(epoch_tloss.item())
+        self.round_summary['vloss'].append(epoch_vloss.item())
+        self.round_summary['tacc'].append(epoch_tacc.item())
+        self.round_summary['vacc'].append(epoch_vacc.item())
         self.training_step_outputs = {'loss': [], 'acc': []}
         self.validation_step_outputs = {'loss': [], 'acc': []}
         # Report
@@ -177,7 +184,11 @@ class LightningConvNet(LightningModule):
         outputs = self.test_step_outputs
         avg_loss = torch.tensor(outputs['loss']).mean()
         avg_acc = torch.tensor(outputs['acc']).mean()
-        self.test_step_outputs = {'loss': [], 'acc': []}
+        total_cm = torch.stack(outputs['cm']).sum(dim=0)
+        self.round_summary['sloss'].append(avg_loss.item())
+        self.round_summary['sacc'].append(avg_acc.item())
+        self.round_summary['scm'] = total_cm.tolist()
+        self.test_step_outputs = {'loss': [], 'acc': [], 'cm': []}
         # Report
         self.logger.log_metrics({
             f'test/loss/{self.id_}': avg_loss,

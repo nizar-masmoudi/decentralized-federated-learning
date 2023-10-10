@@ -1,4 +1,5 @@
 import dataclasses
+from typing import ClassVar
 import numpy as np
 
 
@@ -46,9 +47,12 @@ class Transmitter:
 
 @dataclasses.dataclass
 class CPU:
+    MIN_FREQ: ClassVar[int] = 1e9
+    MAX_FREQ: ClassVar[int] = 5e9
+
     fpc: int = dataclasses.field(default=4)
     """FLOPs per CPU cycle."""
-    frequency: float = dataclasses.field(default_factory=RandomFactory(1e9, 5e9, 1e9))
+    frequency: float = dataclasses.field(default_factory=RandomFactory(MIN_FREQ, MAX_FREQ, 1e9))
     """CPU clock frequency."""
     kappa: float = dataclasses.field(default=1e-28, init=False)
     """Effective capacitance."""
