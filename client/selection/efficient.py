@@ -3,7 +3,7 @@ import client as cl
 from typing import List
 import torch
 import torch.nn as nn
-from client.logger import ConsoleLogger
+from client.loggers import ConsoleLogger
 import logging
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
@@ -57,7 +57,7 @@ class PeerSelectionModel(nn.Module):
 
 
 class EfficientPeerSelector(PeerSelector):
-    def __init__(self, alpha: float = 1, theta: float = .5, log_interval: int = -1):
+    def __init__(self, alpha: float = 1, theta: float = .5, log_interval: int = 10):
         super().__init__()
         self.alpha = alpha
         self.theta = theta
@@ -68,6 +68,8 @@ class EfficientPeerSelector(PeerSelector):
             lambda neighbor: (neighbor.model.loss_history[1] - client.model.loss_history[1]) > 0,
             client.neighbors
         ))
+        if len(selected_neighbors) == 0:
+            return []
 
         # Get positive knowledge gain for each neighbor
         kgain = [(neighbor.model.loss_history[1] - client.model.loss_history[1]) for neighbor in selected_neighbors]
@@ -80,7 +82,7 @@ class EfficientPeerSelector(PeerSelector):
         t_kgain = torch.tensor(sc_kgain)
         t_energy = torch.tensor(sc_energy)
         # Setup model + optimizer
-        model = PeerSelectionModel(len(client.neighbors), self.alpha, self.theta)
+        model = PeerSelectionModel(len(selected_neighbors), self.alpha, self.theta)
         early_stopping = CustomEarlyStopping(3, 1e-4)
         optimizer = Adam(model.parameters(), lr=.1)
         # Optimize
@@ -100,5 +102,5 @@ class EfficientPeerSelector(PeerSelector):
                 break
 
         mask = model.get_betas().detach().numpy().round().astype(bool)
-        peers = [client.neighbors[i] for i in range(len(client.neighbors)) if mask[i]]
+        peers = [selected_neighbors[i] for i in range(len(selected_neighbors)) if mask[i]]
         return peers

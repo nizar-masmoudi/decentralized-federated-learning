@@ -21,6 +21,6 @@ class DistributionFigure(go.Figure):
 
         layout = BarPlotLayout()
         layout.xaxis.range = [-1, 10]
-        layout.yaxis.range = [0, 1500]
+        layout.yaxis.range = [0, 500]
         layout.xaxis.tickvals = list(range(0, 10))
         super().__init__(data, layout)

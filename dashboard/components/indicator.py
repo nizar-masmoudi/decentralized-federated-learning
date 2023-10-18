@@ -1,4 +1,5 @@
 from dash import html, callback, Input, Output, MATCH
+import math
 import uuid
 
 
@@ -67,16 +68,17 @@ class IndicatorAIO(html.Div):
         Output(ID.total(MATCH), 'children'),
         Input('local-storage', 'data'),
     )
-    def upodate_indicators(data: dict):
+    def update_indicators(data: dict):
         if not data:
             return '-', '-', '-'
 
-        comm_energy = 0
-        comp_energy = 0
-        for id_ in data.keys():
-            comm_energy += sum(data[id_]['comm_energy'])
-        for id_ in data.keys():
-            comp_energy += sum(data[id_]['comp_energy'])
-        return ('{:.2f} mJ'.format(comm_energy * 1e3),
-                '{:.2f} J'.format(comp_energy),
-                '{:.2f} J'.format(comm_energy + comp_energy))
+        communication_energy = .0
+        computation_energy = .0
+
+        for client in data['clients']:
+            computation_energy += client['computation_energy'] * sum(client['activity'])
+            communication_energy += sum([item['energy'] for sublist in client['peers'] for item in sublist])
+
+        return ('{:.2f} mJ'.format(communication_energy * 1e3),
+                '{:.2f} J'.format(computation_energy),
+                '{:.2f} J'.format(communication_energy + computation_energy))

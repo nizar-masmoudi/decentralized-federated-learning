@@ -12,7 +12,5 @@ class HeaderAIO(html.Div):
             aio_id = str(uuid.uuid4())
 
         super().__init__([
-            html.H1('Dashboard', className='text-[#151D48] font-semibold text-2xl'),
-            html.Button('Upload', className='py-2 px-4 border border-[#EFF1F3] rounded-md '
-                                            'text-[#151D48] cursor-pointer')
+            html.H1('Decentralized Federated Learning', className='text-[#151D48] font-semibold text-2xl'),
         ], className='flex items-center justify-between bg-white w-full h-20 pl-72 pr-12 flex items-center')

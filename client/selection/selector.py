@@ -37,5 +37,5 @@ class RandPeerSelector(PeerSelector):
         self.p = p
 
     def select(self, client: 'cl.Client') -> List['cl.Client']:
-        peers = list(filter(lambda: random.random() < self.p, client.neighbors))
+        peers = list(filter(lambda neighbor: random.random() < self.p, client.neighbors))
         return peers

@@ -10,7 +10,7 @@ class EfficientActivator(Activator):
         self.alpha = alpha
         self.threshold = threshold
 
-    def activate(self, client: 'cl.Client') -> bool:
+    def activate(self, client: 'cl.Client', *args) -> bool:
         # Computation energy consumption
         energy = client.computation_energy()
         max_energy = (client.local_epochs * client.cpu.kappa * client.model.flops * DataChunk.MAX_SIZE *
@@ -24,4 +24,5 @@ class EfficientActivator(Activator):
 
         # Activation cost
         cost = self.alpha * sc_energy + (1 - self.alpha) * (1 - sc_slope)
-        return self.threshold > cost
+
+        return bool(self.threshold > cost)

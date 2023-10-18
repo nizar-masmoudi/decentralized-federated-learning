@@ -11,6 +11,11 @@ class GlobalLossAIO(html.Div):
             'subcomponent': 'graph',
             'aio_id': aio_id
         }
+        aggregate = lambda aio_id: {
+            'component': 'GlobalLossAIO',
+            'subcomponent': 'aggregate',
+            'aio_id': aio_id
+        }
     ID = ID
 
     def __init__(self, aio_id: str = None):
@@ -25,20 +30,35 @@ class GlobalLossAIO(html.Div):
                 animate=True,
                 style={'width': '100%', 'height': '100%'}
             ),
+            html.Span([
+                dcc.Dropdown(
+                    id=self.ID.aggregate(aio_id),
+                    options=['None', 'Mean', 'Median'],
+                    value='None',
+                    className='w-28 focus:outline-none focus-visible:outline-none '
+                              'border border-[#EFF1F3] rounded-md',
+                    searchable=False,
+                    clearable=False,
+                ),
+            ], className='flex space-x-2 absolute right-7 top-7 text-xs'),
         ], className='relative flex flex-col w-1/2 p-7 h-96 bg-white rounded-lg '
                      'shadow-[0px_4px_20px_rgba(237,237,237,0.5)]')
 
     @callback(
         Output(ID.graph(MATCH), 'figure'),
         Input('local-storage', 'data'),
+        Input(ID.aggregate(MATCH), 'value'),
+        prevent_initial_callbacks=True
     )
-    def update_globaloss(data: dict):
-        if not data:
+    def update_globaloss(data: dict, aggregate: str):
+        if data == {}:
             return EvaluationFigure()
 
-        x = list(range(1, len(data['1']['activity']) + 1))
-        ys = {id_: data[str(id_)]['sloss'] for id_ in range(1, len(data) + 1)}
+        x = list(range(1, len(data['clients'][0]['activity']) + 1))
+        ys = {'Client {}'.format(client['id']): client['test/loss'] for client in data['clients']}
 
-        figure = EvaluationFigure(x, ys)
+        if aggregate == 'None':
+            aggregate = None
+        figure = EvaluationFigure(x, ys, aggregate)
 
         return figure

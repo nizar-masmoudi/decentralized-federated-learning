@@ -30,7 +30,7 @@ class FullActivator(Activator):
     def __init__(self):
         super().__init__()
 
-    def activate(self) -> bool:
+    def activate(self, *args) -> bool:
         return True
 
 
@@ -39,5 +39,5 @@ class RandActivator(Activator):
         super().__init__()
         self.p = p
 
-    def activate(self) -> bool:
+    def activate(self, *args) -> bool:
         return random.random() < self.p

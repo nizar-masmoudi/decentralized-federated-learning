@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from lightning.pytorch import LightningModule
 import itertools
-from client.logger import ConsoleLogger
+from client.loggers import ConsoleLogger
 import logging
 
 logging.setLoggerClass(ConsoleLogger)

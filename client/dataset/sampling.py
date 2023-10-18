@@ -35,3 +35,10 @@ class DataChunk(Subset):
             return list(class_distribution)
         else:
             raise AttributeError("Dataset has no attributes 'targets'")
+
+    def to_dict(self):
+        return {
+            'name': self.dataset.__class__.__name__,
+            'iid': self.balanced_sampling,
+            'distribution': self.class_dist()
+        }

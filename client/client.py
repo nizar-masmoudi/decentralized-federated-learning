@@ -2,7 +2,7 @@ import itertools
 from client.dataset.utils import train_valid_split
 from torch.utils.data import Dataset, DataLoader
 from client.components import CPU, Transmitter
-from client.logger import ConsoleLogger
+from client.loggers import ConsoleLogger, JSONLogger
 from lightning.pytorch import LightningModule
 import logging
 import math
@@ -40,6 +40,7 @@ class Client:
             activator: Activator,
             aggregator: Aggregator,
             selector: PeerSelector,
+            json_logger: JSONLogger = None
     ):
         """
         Initialize a client.
@@ -76,18 +77,17 @@ class Client:
         self.selector = selector
 
         self.geo_limits = geo_limits
-        self.lookup_dist = math.inf
+        self.lookup_dist = 2
         self.location = (0., 0.)
         self.neighbors: List['Client'] = []
         self.peers: List['Client'] = []
         self.is_active = False
 
-        self.simulation_dict = None
-
-        # Initial location
-        self.relocate()
+        # self.simulation_dict = None
+        self.json_logger = json_logger
 
         logger.debug(repr(self), extra={'id': self.id_})
+        self.json_logger.add_client(self)
 
     def __eq__(self, other: 'Client') -> bool:
         return self.id_ == other.id_
@@ -109,7 +109,9 @@ class Client:
         """
         (lat_min, lon_min), (lat_max, lon_max) = self.geo_limits
         self.location = (random.uniform(lat_min, lat_max), random.uniform(lon_min, lon_max))
+
         logger.info('Client relocated to {}, {}'.format(*self.location), extra={'id': self.id_})
+        self.json_logger.log_location(self)
 
     def lookup(self, clients: List['Client']):
         """
@@ -117,21 +119,27 @@ class Client:
         :param clients: List of all clients.
         :return: List of neighbors.
         """
+        for client in clients:
+            logger.debug('Distance between {} and {} = {}'.format(str(self), str(client), Client.distance(self, client)))
         neighbors = [client for client in clients
                      if (client != self) and (Client.distance(self, client) < self.lookup_dist)]
         self.neighbors = neighbors
         nbrs_str = ', '.join(str(neighbor) for neighbor in self.neighbors)
+
         if self.neighbors:
             logger.info('Client found {} clients nearby: {}'.format(len(self.neighbors), nbrs_str),
                         extra={'id': self.id_})
         else:
             logger.info('Client found 0 clients nearby', extra={'id': self.id_})
+        self.json_logger.log_neighbors(self)
 
     def compute_lslope(self) -> float:
         """
         Calculate learning slope.
         :return: Learning slope
         """
+        if self.model.loss_history[0] == math.inf:  # Model hasn't been activated yet
+            return math.inf
         return abs(self.model.loss_history[1] - self.model.loss_history[0])
 
     def computation_energy(self) -> float:
@@ -144,17 +152,14 @@ class Client:
         logger.debug('Computation energy = {:.3f} mW'.format(energy * 1e3), extra={'id': self.id_})
         return energy
 
-    def communication_energy(self, peer: 'Client' = None, distance: float = None) -> float:
+    def communication_energy(self, peer: 'Client') -> float:
         """
         Calculate communication energy consumed by client when communicating with specified peer.
-        :param distance: Distance between client and peer (used only when peer is None).
         :param peer: Peer communication with client (used only when distance is None).
         :return: Communication energy
         """
-        if peer is None and distance is None:
-            raise ValueError('peer and distance cannot be both None.')
 
-        distance = Client.distance(self, peer) if peer else distance
+        distance = Client.distance(self, peer)
         channel_gain = (self.transmitter.transmit_gain + self.transmitter.receive_gain +
                         20 * math.log10(3e8 / (4 * math.pi * self.transmitter.signal_frequency)) -
                         20 * math.log10(distance))
@@ -171,7 +176,7 @@ class Client:
         return energy
 
     def train(self):
-        trainer = Trainer(max_epochs=self.local_epochs, enable_checkpointing=False,
+        trainer = Trainer(max_epochs=self.local_epochs, enable_checkpointing=False, logger=self.json_logger,
                           log_every_n_steps=1, enable_model_summary=False, enable_progress_bar=False)
         logger.info('Local training process started', extra={'id': self.id_})
         train_ds, valid_ds = train_valid_split(self.train_ds, .1)
@@ -181,7 +186,7 @@ class Client:
         logger.info('Local training process ended', extra={'id': self.id_})
 
     def test(self):
-        trainer = Trainer(max_epochs=self.local_epochs, enable_checkpointing=False,
+        trainer = Trainer(max_epochs=self.local_epochs, enable_checkpointing=False, logger=self.json_logger,
                           log_every_n_steps=1, enable_model_summary=False, enable_progress_bar=False)
         logger.info('Model testing process started', extra={'id': self.id_})
         test_dl = DataLoader(self.test_ds, batch_size=32)
@@ -198,74 +203,20 @@ class Client:
 
     def activate(self):
         logger.info('Client activation process started', extra={'id': self.id_})
-        is_active = self.activator.activate()
-        logger.info('Client has been activated' if is_active else 'Client has been deactivate', extra={'id': self.id_})
+        is_active = self.activator.activate(self)
         self.is_active = is_active
+
+        logger.info('Client has been activated' if is_active else 'Client has been deactivated', extra={'id': self.id_})
+        self.json_logger.log_activity(self)
 
     def select_peers(self):
         logger.info('Peer selection process started', extra={'id': self.id_})
         peers = self.selector.select(self)
         peers_str = ', '.join(str(peer) for peer in peers)
-        logger.info('Client selected {} peers: {}'.format(len(peers), peers_str), extra={'id': self.id_})
         self.peers = peers
 
-    def update_dict(self):
-        if self.simulation_dict is None:
-            self.simulation_dict = {self.id_: {
-                'activation': {
-                    'policy': self.activator.__class__.__name__,
-                    **{k: v for k, v in vars(self.activator).items() if k != 'id_'}
-                },
-                'aggregation': {
-                    'policy': self.aggregator.__class__.__name__,
-                },
-                'selection': {
-                    'policy': self.selector.__class__.__name__,
-                    **{k: v for k, v in vars(self.selector).items() if k != 'id_'}
-                },
-                'local_epochs': self.local_epochs,
-                'batch_size': self.batch_size,
-                'locations': [],
-                'activity': [],
-                'neighbors': [],
-                'peers': [],
-                'tloss': [],
-                'vloss': [],
-                'tacc': [],
-                'vacc': [],
-                'cpu': {
-                    'fpc': self.cpu.fpc,
-                    'frequency': self.cpu.frequency,
-                    'kappa': self.cpu.kappa
-                },
-                'transmitter': {
-                    'power': self.transmitter.power,
-                    'bandwidth': self.transmitter.bandwidth,
-                    'psd': self.transmitter.psd,
-                    'signal_frequency': self.transmitter.signal_frequency,
-                    'transmit_gain': self.transmitter.transmit_gain,
-                    'receive_gain': self.transmitter.receive_gain
-                },
-                'distribution': self.train_ds.class_dist(),
-                'comm_energy': [],
-                'comp_energy': [],
-            }}
-        self.simulation_dict[self.id_]['locations'].append(list(self.location))
-        self.simulation_dict[self.id_]['activity'].append(self.is_active)
-        self.simulation_dict[self.id_]['neighbors'].append([str(neighbor.id_) for neighbor in self.neighbors])
-        self.simulation_dict[self.id_]['peers'].append([str(peer.id_) for peer in self.peers])
-        self.simulation_dict[self.id_]['tloss'] = self.model.round_summary['tloss']
-        self.simulation_dict[self.id_]['vloss'] = self.model.round_summary['vloss']
-        self.simulation_dict[self.id_]['sloss'] = self.model.round_summary['sloss']
-        self.simulation_dict[self.id_]['tacc'] = self.model.round_summary['tacc']
-        self.simulation_dict[self.id_]['vacc'] = self.model.round_summary['vacc']
-        self.simulation_dict[self.id_]['sacc'] = self.model.round_summary['sacc']
-        self.simulation_dict[self.id_]['comm_energy'].append(
-            sum(self.communication_energy(peer) for peer in self.peers) if self.is_active else 0
-        )
-        self.simulation_dict[self.id_]['comp_energy'].append(
-            self.computation_energy() if self.is_active else 0
-        )
+        logger.info('Client selected {} peers: {}'.format(len(peers), peers_str), extra={'id': self.id_})
+        self.json_logger.log_peers(self)
 
     # Utilities
     @staticmethod

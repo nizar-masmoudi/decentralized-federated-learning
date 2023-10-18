@@ -31,22 +31,23 @@ class ActivityAIO(html.Div):
     @callback(
         Output(ID.graph(MATCH), 'figure'),
         Input('local-storage', 'data'),
+        prevent_initial_callbacks=True
     )
     def update_activity(data: dict):
-        if not data:
+        if data == {}:
             return ActivityFigure()
 
-        x = list(range(1, len(data['1']['activity']) + 1))
+        x = list(range(1, len(data['clients'][0]['activity']) + 1))
         ys = {
             'Active clients': [],
-            'Total clients': [len(data)] * len(x)
+            'Total clients': [len(data['clients'])] * len(x)
         }
         for i in x:
-            ys['Active clients'].append(sum([node['activity'][i - 1] for node in data.values()]))
+            ys['Active clients'].append(sum([client['activity'][i - 1] for client in data['clients']]))
 
         figure = ActivityFigure(x, ys)
-        figure.layout.yaxis.range = [-1, len(data) + 2]
-        figure.layout.yaxis.tickvals = list(range(0, len(data) + 2, 1))
+        figure.layout.yaxis.range = [-1, len(data['clients']) + 6]
+        figure.layout.yaxis.tickvals = list(range(0, len(data['clients']) + 2, 5))
         figure.layout.xaxis.tickvals = list(range(1, len(x), 1))
 
         return figure

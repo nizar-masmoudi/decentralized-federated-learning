@@ -166,3 +166,4 @@ logs/
 scratch.py
 dashapp/
 *.json
+/lightning_logs/

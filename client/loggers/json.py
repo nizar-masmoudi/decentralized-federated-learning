@@ -1,0 +1,145 @@
+from abc import ABC
+
+from lightning.pytorch.loggers.logger import Logger
+from lightning.pytorch.utilities import rank_zero_only
+import json
+import uuid
+import os
+import os.path as osp
+import client as cl
+
+
+class JSONLogger(Logger, ABC):
+    def __init__(
+            self,
+            project: str,
+            name: str = None,
+            config: dict = None,
+            version: str = None,
+            save_dir: str = None
+    ) -> None:
+        super().__init__()
+        self._id = str(uuid.uuid4())
+        self._project = project
+        self._name = name or self._id
+        self._version = version or '1.0.0'
+        self._save_dir = save_dir or 'logs/'
+        self._config = config or {}
+        self._json = {
+            'project': self._project,
+            'name': self._name,
+            'version': self.version,
+            'config': self._config,
+            'clients': []
+        }
+        # Bug in new version
+        self.experiment = None
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def version(self):
+        return self._version
+
+    @rank_zero_only
+    def log_hyperparams(self, params) -> None:
+        pass
+
+    @rank_zero_only
+    def add_client(self, client: 'cl.Client'):
+        self._json['clients'].append({
+            'id': client.id_,
+            'components': {
+                'cpu': client.cpu.to_dict(),
+                'transmitter': client.transmitter.to_dict(),
+            },
+            'dataset': client.train_ds.to_dict(),
+            'computation_energy': client.computation_energy()
+        })
+
+    @rank_zero_only
+    def log_location(self, client: 'cl.Client'):
+        # Lookup client
+        obj = next((item for item in self._json['clients'] if item['id'] == client.id_), None)
+        assert obj is not None
+
+        if 'locations' not in obj.keys():
+            obj['locations'] = [client.location]
+        else:
+            obj['locations'].append(client.location)
+
+    @rank_zero_only
+    def log_metrics(self, metrics: dict, step: int = None):
+        id_ = int(list(metrics.keys())[0].split('/')[0])
+        metrics = {k[k.find('/') + 1:]: v for k, v in metrics.items()}
+        # Lookup client
+        client = next((item for item in self._json['clients'] if item['id'] == id_), None)
+        assert client is not None
+
+        for metric, value in metrics.items():
+            if metric not in client.keys():
+                client[metric] = [value]
+            else:
+                client[metric].append(value)
+
+    @rank_zero_only
+    def log_activity(self, client: 'cl.Client'):
+        # Lookup client
+        obj = next((item for item in self._json['clients'] if item['id'] == client.id_), None)
+        assert obj is not None
+
+        if 'activity' not in obj.keys():
+            obj['activity'] = [client.is_active]
+        else:
+            obj['activity'].append(client.is_active)
+
+    @rank_zero_only
+    def log_neighbors(self, client: 'cl.Client'):
+        # Lookup client
+        obj = next((item for item in self._json['clients'] if item['id'] == client.id_), None)
+        assert obj is not None
+
+        if 'neighbors' not in obj.keys():
+            obj['neighbors'] = [[{
+                'id': neighbor.id_,
+                'energy': client.communication_energy(neighbor),
+                'distance': cl.Client.distance(client, neighbor),
+            } for neighbor in client.neighbors]]
+        else:
+            obj['neighbors'].append([{
+                'id': neighbor.id_,
+                'energy': client.communication_energy(neighbor),
+                'distance': cl.Client.distance(client, neighbor),
+            } for neighbor in client.neighbors])
+
+    @rank_zero_only
+    def log_peers(self, client: 'cl.Client'):
+        # Lookup client
+        obj = next((item for item in self._json['clients'] if item['id'] == client.id_), None)
+        assert obj is not None
+
+        if 'peers' not in obj.keys():
+            obj['peers'] = [[{
+                'id': peer.id_,
+                'energy': client.communication_energy(peer),
+                'distance': cl.Client.distance(client, peer),
+            } for peer in client.peers]]
+        else:
+            obj['peers'].append([{
+                'id': peer.id_,
+                'energy': client.communication_energy(peer),
+                'distance': cl.Client.distance(client, peer),
+            } for peer in client.peers])
+
+    @rank_zero_only
+    def save(self):
+        if not osp.exists(self._save_dir):
+            os.makedirs(self._save_dir)
+        with open(osp.join(self._save_dir, f'{self._name}.json'), 'w') as file:
+            json.dump(self._json, file)
+
+    @rank_zero_only
+    def finalize(self, status):
+        pass

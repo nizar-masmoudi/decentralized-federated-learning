@@ -32,18 +32,21 @@ class SelectionAIO(html.Div):
     @callback(
         Output(ID.graph(MATCH), 'figure'),
         Input('local-storage', 'data'),
+        prevent_initial_callbacks=True
     )
     def update_selection(data: dict):
-        if not data:
+        if data == {}:
             return SelectionFigure()
 
-        x = list(range(1, len(data) + 1))
+        x = list(range(1, len(data['clients'][0]['activity']) + 1))
         ys = {'Rate': []}
-        for id_ in data.keys():
-            neighbors_count = np.array(list(map(lambda l: len(l), data[id_]['neighbors'])))
-            peers_count = np.array(list(map(lambda l: len(l), data[id_]['peers'])))
-            mask = np.logical_and(peers_count != 0, neighbors_count != 0)
-            rate = np.divide(peers_count[mask], neighbors_count[mask]).mean()
+        for client in data['clients']:
+            # Filter neighbors according to client activity
+            activity = np.array(client['activity'])
+            neighbors_count = np.array(list(map(lambda l: len(l), client['neighbors'])))[activity]
+            peers_count = np.array(list(map(lambda l: len(l), client['peers'])))
+
+            rate = np.divide(peers_count[neighbors_count != 0], neighbors_count[neighbors_count != 0]).mean()
             ys['Rate'].append(rate)
 
         figure = SelectionFigure(x, ys)

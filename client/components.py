@@ -44,6 +44,16 @@ class Transmitter:
                 f'signal_frequency={self.signal_frequency:.0e}, transmit_gain={self.transmit_gain}, '
                 f'receive_gain={self.receive_gain})')
 
+    def to_dict(self):
+        return {
+            'power': self.power,
+            'bandwidth': self.bandwidth,
+            'psd': self.psd,
+            'signal_frequency': self.signal_frequency,
+            'transmit_gain': self.transmit_gain,
+            'receive_gain': self.receive_gain
+        }
+
 
 @dataclasses.dataclass
 class CPU:
@@ -59,3 +69,10 @@ class CPU:
 
     def __repr__(self):
         return f'CPU(fpc={self.fpc}, frequency={self.frequency:.0e}, kappa={self.kappa:.0e})'
+
+    def to_dict(self):
+        return {
+            'fpc': self.fpc,
+            'frequency': self.frequency,
+            'kappa': self.kappa
+        }

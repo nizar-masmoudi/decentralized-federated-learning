@@ -1,5 +1,5 @@
 from dash import html, dcc, callback, Input, Output, MATCH
-from figures import DistributionFigure
+from dashboard.figures import DistributionFigure
 import uuid
 
 
@@ -45,27 +45,27 @@ class DistributionAIO(html.Div):
     @callback(
         Output(ID.dropdown(MATCH), 'options'),
         Input('local-storage', 'data'),
+        prevent_initial_callbacks=True
     )
     def update_dropdown_options(data: dict):
-        if not data:
+        if data == {}:
             return []
-        return [f'Client {id_}' for id_ in data.keys()]
+        return [f'Client {id_}' for id_ in range(1, len(data['clients']) + 1)]
 
     @callback(
         Output(ID.graph(MATCH), 'figure'),
         Input('local-storage', 'data'),
         Input(ID.dropdown(MATCH), 'value'),
+        prevent_initial_callbacks=True
     )
-    def update_distribution(data: dict, client: str):
+    def update_distribution(data: dict, value: str):
         if not data:
             return DistributionFigure()
 
-        if client is None:
-            client_id = '1'
-        else:
-            client_id = client.split(' ')[-1]
+        id_ = 1 if value is None else int(value.split(' ')[-1])
+        client = next((item for item in data['clients'] if item['id'] == id_), None)
 
         return DistributionFigure(
             x=list(range(0, 10)),
-            y=data[client_id]['distribution'],
+            y=client['dataset']['distribution'],
         )
