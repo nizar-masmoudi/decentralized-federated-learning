@@ -1,11 +1,12 @@
+import json
+import os
+import os.path as osp
+import uuid
 from abc import ABC
 
 from lightning.pytorch.loggers.logger import Logger
 from lightning.pytorch.utilities import rank_zero_only
-import json
-import uuid
-import os
-import os.path as osp
+
 import client as cl
 
 
@@ -42,6 +43,10 @@ class JSONLogger(Logger, ABC):
     @property
     def version(self):
         return self._version
+
+    @property
+    def config(self):
+        return self._config
 
     @rank_zero_only
     def log_hyperparams(self, params) -> None:

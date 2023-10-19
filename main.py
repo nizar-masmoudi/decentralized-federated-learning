@@ -1,16 +1,17 @@
-from client.selection import EfficientPeerSelector, FullPeerSelector, RandPeerSelector
-from client.activation import FullActivator, RandActivator, EfficientActivator
-from client.loggers import ConsoleLogger, JSONLogger
-from client.dataset.sampling import DataChunk
-from client.models import LightningConvNet
-from client.aggregation import FedAvg
-from client import Client
-from torchvision.datasets import MNIST
-from torchvision.transforms import ToTensor
-import warnings
 import argparse
 import logging
+import warnings
 
+from torchvision.datasets import MNIST
+from torchvision.transforms import ToTensor
+
+from client import Client
+from client.activation import FullActivator
+from client.aggregation import FedAvg
+from client.dataset.sampling import DataChunk
+from client.loggers import ConsoleLogger, JSONLogger
+from client.models import LightningConvNet
+from client.selection import RandPeerSelector
 
 # Disabling unnecessary warnings and logs
 warnings.filterwarnings('ignore', '.*does not have many workers which may be a bottleneck.*')
@@ -22,17 +23,7 @@ logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)
 
-json_logger = JSONLogger(
-    'decentralized-federated-learning',
-    'sweet-potato-1',
-    {
-        'activator': {'policy': 'Random', 'p': .5},
-        'selector': {'policy': 'Full'},
-        'aggregator': {'policy': 'Full'},
-        'local_epochs': 3,
-        'geo_limits': [[36.897092, 10.152086], [36.870453, 10.219636]]
-    },
-)
+json_logger = JSONLogger('decentralized-federated-learning', 'random-selection')
 
 
 def main():
@@ -48,9 +39,25 @@ def main():
 
     clients = []
     for _ in range(args.clients):
-        activator = RandActivator(.5)
-        selector = FullPeerSelector()
+        activator = FullActivator()
+        selector = RandPeerSelector(.5)
         aggregator = FedAvg()
+
+        if json_logger.config == {}:
+            json_logger.config['activator'] = {
+                'policy': activator.__class__.__name__,
+                **{k: v for k, v in vars(activator).items() if k != 'id_'}
+            }
+            json_logger.config['selector'] = {
+                'policy': selector.__class__.__name__,
+                **{k: v for k, v in vars(selector).items() if k != 'id_'}
+            }
+            json_logger.config['aggregator'] = {
+                'policy': aggregator.__class__.__name__,
+                **{k: v for k, v in vars(aggregator).items() if k != 'id_'}
+            }
+            json_logger.config['local_epochs'] = 3
+            json_logger.config['geo_limits'] = ((36.897092, 10.152086), (36.870453, 10.219636))
 
         client = Client(
             geo_limits=((36.897092, 10.152086), (36.870453, 10.219636)),

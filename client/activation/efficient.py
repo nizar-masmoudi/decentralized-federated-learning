@@ -1,6 +1,5 @@
-from client.activation.activator import Activator
-import numpy as np
 import client as cl
+from client.activation.activator import Activator
 from client.dataset.sampling import DataChunk
 
 
