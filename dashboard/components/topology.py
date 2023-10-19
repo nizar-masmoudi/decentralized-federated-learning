@@ -1,8 +1,10 @@
+import uuid
+
+import dash_cytoscape as cyto
 from dash import html, callback, Input, Output, State, ALL
 from dash_daq.NumericInput import NumericInput
-import dash_cytoscape as cyto
-import uuid
-from dashboard.utils import format_size, geo_distance
+
+from dashboard.utils import format_size
 
 
 # noinspection PyMethodParameters
@@ -335,122 +337,3 @@ class TopologyAIO(html.Div):
                 '-'
             ]
         return configs
-
-    # @callback(
-    #     Output(ID.client_cfg(ALL), 'children'),
-    #     Output('round', 'max'),
-    #     Input('local-storage', 'data'),
-    #     Input('cytoscape', 'tapNodeData'),
-    #     Input('round', 'value'),
-    #     State(ID.client_cfg(ALL), 'children'),
-    # )
-    # def update_client_config(data: dict, node: dict, round_: int, configs: list):
-    #     max_round = 10
-    #     round_ = round_ - 1
-    #
-    #     if not data:
-    #         return configs, max_round
-    #     if node is None:
-    #         id_ = 1
-    #     else:
-    #         id_ = node['id']
-    #
-    #     print(node)
-    #     max_round = len(data['clients'][0]['activity'])
-    #     client = next((item for item in data['clients'] if item['id'] == id_), None)
-    #
-    #     configs = [
-    #         'Client {}'.format(client['id'] if client else 1),
-    #         round(client['locations'][round_ - 1][0], 7),
-    #         round(client['locations'][round_ - 1][1], 7),
-    #         client['components']['cpu']['fpc'],
-    #         format_size(client['components']['cpu']['frequency'], 'hertz'),
-    #         client['components']['cpu']['kappa'],
-    #         '{} dBm'.format(client['components']['transmitter']['power']),
-    #         format_size(client['components']['transmitter']['bandwidth']),
-    #         format_size(client['components']['transmitter']['signal_frequency'], 'hertz'),
-    #     ]
-    #     return configs, max_round
-    #
-    # @callback(
-    #     Output(ID.channel_cfg(ALL), 'children'),
-    #     Input('local-storage', 'data'),
-    #     Input('cytoscape', 'tapEdgeData'),
-    #     Input('round', 'value'),
-    #     State(ID.channel_cfg(ALL), 'children'),
-    # )
-    # def update_channel_config(data: dict, edge: dict, round_: int, configs: list):
-    #     if not data or edge is None:
-    #         return configs
-    #     else:
-    #         distance = geo_distance(
-    #             data[edge['source']]['locations'][round_ - 1],
-    #             data[edge['target']]['locations'][round_ - 1]
-    #         )
-    #         configs = [
-    #             'Client {} - Client {}'.format(edge['source'], edge['target']),
-    #             '{:.3f} Km'.format(distance),
-    #             '-',
-    #             '-'
-    #         ]
-    #     return configs
-
-    # @callback(
-    #     Output('cytoscape', 'elements'),
-    #     Input('local-storage', 'data'),
-    #     Input('cytoscape', 'tapNodeData'),
-    #     State('round', 'value'),
-    #     Input('cytoscape', 'layout'),
-    # )
-    # def update_cytoscape_elements(data: dict, node: dict, round_: int, _):
-    #     if not data:
-    #         return []
-    #     if node is None:
-    #         id_ = 1
-    #     else:
-    #         id_ = node['id']
-    #
-    #     round_ -= 1
-    #     (min_lat, min_lon), (max_lat, max_lon) = data['config']['geo_limits']
-    #     # Set nodes
-    #     nodes = [{
-    #         'data': {'id': i + 1, 'label': f'Client {i + 1}',  'active': data['clients'][i]['activity'][round_]},
-    #         'position': {
-    #             'y': 594 * (data['clients'][i]['locations'][round_][0] - min_lat) / (max_lat - min_lat),
-    #             'x': 1040 * (data['clients'][i]['locations'][round_][1] - min_lon) / (max_lon - min_lon)},
-    #         'grabbable': False} for i in range(len(data['clients']))]
-    #     # Set edges
-    #     edges = []
-    #     edges += [
-    #         {'data': {
-    #             'id': id_ + nid_,
-    #             'source': id_,
-    #             'target': nid_,
-    #             'peer': nid_ in data['clients'][id_ - 1]['peers'][round_],
-    #         }} for nid_ in data['clients'][id_ - 1]['neighbors'][round_]
-    #     ]
-    #     return nodes + edges
-    #
-    # @callback(
-    #     Output('cytoscape', 'layout'),
-    #     Input('round', 'value'),
-    #     State('local-storage', 'data'),
-    #     State('cytoscape', 'layout'),
-    # )
-    # def update_cytoscape_layout(round_: int, data: dict, layout: dict):
-    #     if not data:
-    #         return layout
-    #
-    #     (min_lat, min_lon), (max_lat, max_lon) = data['config']['geo_limits']
-    #     layout = {
-    #         'name': 'preset',
-    #         'animate': True,
-    #         'animationDuration': 500,
-    #         'positions': {
-    #             id_: {
-    #                 'y': 594 * (data['clients'][id_]['locations'][round_ - 1][0] - min_lat) / (max_lat - min_lat),
-    #                 'x': 1040 * (data['clients'][id_]['locations'][round_ - 1][1] - min_lon) / (max_lon - min_lon),
-    #             } for id_ in range(1, len(data['clients']) + 1)
-    #         }
-    #     }
-    #     return layout
