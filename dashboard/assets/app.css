@@ -10,6 +10,10 @@ body::-webkit-scrollbar {
   display: none;
 }
 
+.dt-table-container__row::-webkit-scrollbar {
+  display: none !important;
+}
+
 /* Hide Plotly controls */
 .modebar {
   display: none !important;
@@ -37,4 +41,13 @@ body::-webkit-scrollbar {
     border-color: transparent !important;
     box-shadow: none !important;
     border: 0 !important;
+}
+
+.column-actions {
+    order: 9;
+}
+
+.column-header--sort  {
+    color: #96A5B8 !important;
+    margin-left: 20px !important;
 }

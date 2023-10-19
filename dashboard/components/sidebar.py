@@ -1,9 +1,7 @@
 from dash import html, callback, Input, Output, State, ALL, ctx
 from dash_svg import Svg, Path
-import json
 import uuid
 import os
-from dashboard.utils import process_data
 
 
 # noinspection PyMethodParameters
@@ -31,7 +29,7 @@ class SidebarAIO(html.Div):
                                 Path(d='M8.25 4.5l7.5 7.5-7.5 7.5', strokeLinecap='round', strokeLinejoin='round')
                             ], fill='none', viewBox='0 0 24 24', className='w-4 h-4 stroke-[#444A6D] stroke-2')
                         ],
-                        SidebarAIO.ID.runs(i, os.path.join('logs/', file)),
+                        SidebarAIO.ID.runs(i, file.split('.')[0]),
                         className='flex items-center justify-between p-2 w-full rounded-lg '
                                   'cursor-pointer bg-transparent'
                     ),
@@ -42,28 +40,15 @@ class SidebarAIO(html.Div):
         ], className='fixed inset-0 bg-white w-60 h-screen p-2 pt-28 text-sm text-[#444A6D]')
 
     @callback(
-        Output('local-storage', 'data'),
-        Output(ID.runs(ALL, ALL), 'className'),
+        Output('location', 'pathname'),
         Input(ID.runs(ALL, ALL), 'n_clicks'),
-        State(ID.runs(ALL, ALL), 'className'),
+        State('location', 'pathname'),
     )
-    def update_run(n_clicks: list, styles: list):
-        data = {}
+    def update_run(n_clicks: list, pathname: str):
         if any(n_clicks):
             # Read json file
             clicked = ctx.triggered_id
+            run_name = clicked['file']
+            return f'/run/{run_name}'
 
-            file = clicked['file']
-            with open(file) as json_file:
-                data = json.load(json_file)
-            data = process_data(data)
-
-            index = clicked['index']
-
-            for i, style in enumerate(styles):
-                if i == index:
-                    styles[i] = style.replace('bg-transparent', 'bg-[#444A6D]/5')
-                else:
-                    styles[i] = style.replace('bg-[#444A6D]/5', 'bg-transparent')
-
-        return data, styles
+        return pathname
