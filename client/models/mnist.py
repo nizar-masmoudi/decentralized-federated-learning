@@ -1,21 +1,22 @@
+import copy
+import itertools
+import logging
+import math
+
 import torch
 import torch.nn as nn
 from lightning.pytorch import LightningModule
-from torchmetrics import Accuracy, ConfusionMatrix
+from torchmetrics import Accuracy
 from torchtnt.utils.flops import FlopTensorDispatchMode
 from torchtnt.utils.module_summary import get_module_summary
-from client.loggers import ConsoleLogger
-import logging
-import itertools
-import copy
-import math
 
+from client.loggers import ConsoleLogger
 
 logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)
 
 
-class ConvNet(nn.Module):
+class MNISTModel(nn.Module):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
@@ -64,14 +65,14 @@ class ConvNet(nn.Module):
         return flops_forward, flops_backward
 
 
-class LightningConvNet(LightningModule):
+class LightningMNIST(LightningModule):
     inc = itertools.count(start=1)
 
     def __init__(self):
         super().__init__()
-        self.id_ = next(LightningConvNet.inc)
+        self.id_ = next(LightningMNIST.inc)
 
-        self.model = ConvNet()
+        self.model = MNISTModel()
         self.loss_fn = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1)
         self.accuracy = Accuracy(task='multiclass', num_classes=10)
@@ -174,4 +175,3 @@ class LightningConvNet(LightningModule):
         logger.info('Test loss = {:.3f} - Test accuracy = {:.3f}'.format(avg_loss, avg_acc), extra={'id': self.id_})
         # Update slope
         self.loss_history = (self.loss_history[1], avg_loss)
-

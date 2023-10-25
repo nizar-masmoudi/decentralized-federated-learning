@@ -1,9 +1,11 @@
+import itertools
+import logging
+
 import torch
 import torch.nn as nn
 from lightning.pytorch import LightningModule
-import itertools
+
 from client.loggers import ConsoleLogger
-import logging
 
 logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)

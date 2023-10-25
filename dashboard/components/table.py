@@ -1,9 +1,10 @@
-from dash import html, dash_table
-import uuid
 import json
 import os
+import uuid
+
 import numpy as np
 import pandas as pd
+from dash import html, dash_table
 
 
 class TableAIO(html.Div):
@@ -107,7 +108,7 @@ class TableAIO(html.Div):
         if name == 'aggregator':
             return 'FedAvg'
         else:
-            if props['policy'] == 'Full':
+            if props['policy'].startswith('Full'):
                 return 'Full'
             elif props['policy'].startswith('Rand'):
                 return 'Random (Probability = {})'.format(props['p'])

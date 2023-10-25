@@ -1,12 +1,14 @@
-import dash
-from dash import html, dcc, callback, Input, Output
-from dashboard.utils import process_data
-import os.path as osp
 import json
+import os.path as osp
+
+import dash
+from dash import html, callback, Input, Output
+
 from dashboard.components import (SidebarAIO, HeaderAIO, TopologyAIO, DistributionAIO, ActivityAIO, SelectionAIO,
                                   LocalLossAIO, GlobalLossAIO, LocalAccuracyAIO, GlobalAccuracyAIO, IndicatorAIO)
+from dashboard.utils import process_data
 
-dash.register_page(__name__, path_template='/run/<run_name>', name='Run')
+dash.register_page(__name__, path_template='/run/<run_name>', title=lambda run_name: f'Runs | {run_name}')
 
 
 def layout(run_name: str = None):

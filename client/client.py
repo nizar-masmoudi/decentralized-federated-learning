@@ -1,19 +1,21 @@
 import itertools
-from client.dataset.utils import train_valid_split
-from torch.utils.data import Dataset, DataLoader
-from client.components import CPU, Transmitter
-from client.loggers import ConsoleLogger, JSONLogger
-from lightning.pytorch import LightningModule
 import logging
 import math
 import random
 from typing import List
+from typing import Tuple
+
+from lightning.pytorch import LightningModule
 from lightning.pytorch import Trainer
+from torch.utils.data import Dataset, DataLoader
+
 from client.activation.activator import Activator
 from client.aggregation.aggregator import Aggregator
-from client.selection.selector import PeerSelector
-from typing import Tuple
+from client.components import CPU, Transmitter
 from client.dataset.sampling import DataChunk
+from client.dataset.utils import train_valid_split
+from client.loggers import ConsoleLogger, JSONLogger
+from client.selection.selector import PeerSelector
 
 logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)
@@ -119,8 +121,6 @@ class Client:
         :param clients: List of all clients.
         :return: List of neighbors.
         """
-        for client in clients:
-            logger.debug('Distance between {} and {} = {}'.format(str(self), str(client), Client.distance(self, client)))
         neighbors = [client for client in clients
                      if (client != self) and (Client.distance(self, client) < self.lookup_dist)]
         self.neighbors = neighbors
@@ -152,14 +152,17 @@ class Client:
         logger.debug('Computation energy = {:.3f} mW'.format(energy * 1e3), extra={'id': self.id_})
         return energy
 
-    def communication_energy(self, peer: 'Client') -> float:
+    def communication_energy(self, peer: 'Client' = None, distance: float = None) -> float:
         """
         Calculate communication energy consumed by client when communicating with specified peer.
+        :param distance: Distance between client and peer (used only when peer is None).
         :param peer: Peer communication with client (used only when distance is None).
         :return: Communication energy
         """
+        if peer is None and distance is None:
+            raise ValueError('peer and distance cannot be both None.')
 
-        distance = Client.distance(self, peer)
+        distance = Client.distance(self, peer) if peer else distance
         channel_gain = (self.transmitter.transmit_gain + self.transmitter.receive_gain +
                         20 * math.log10(3e8 / (4 * math.pi * self.transmitter.signal_frequency)) -
                         20 * math.log10(distance))
@@ -189,16 +192,18 @@ class Client:
         trainer = Trainer(max_epochs=self.local_epochs, enable_checkpointing=False, logger=self.json_logger,
                           log_every_n_steps=1, enable_model_summary=False, enable_progress_bar=False)
         logger.info('Model testing process started', extra={'id': self.id_})
-        test_dl = DataLoader(self.test_ds, batch_size=32)
+        test_dl = DataLoader(self.test_ds, batch_size=self.batch_size)
         trainer.test(self.model, test_dl, verbose=False)
         logger.info('Model testing process ended', extra={'id': self.id_})
 
     def aggregate(self, models: List[LightningModule]):
         logger.info('Model aggregation process started with peers: {}'.format(
             ', '.join([f'Client{model.id_}' for model in models])), extra={'id': self.id_})
+
         state_dicts = [self.model.state_dict()] + [model.state_dict() for model in models]
         agg_state = self.aggregator.aggregate(state_dicts)
         self.model.load_state_dict(agg_state)
+
         logger.info('Model aggregation process ended', extra={'id': self.id_})
 
     def activate(self):

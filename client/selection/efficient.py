@@ -1,13 +1,14 @@
-from client.selection.selector import PeerSelector
-import client as cl
+import logging
 from typing import List
+
+import numpy as np
 import torch
 import torch.nn as nn
-from client.loggers import ConsoleLogger
-import logging
-from sklearn.preprocessing import MinMaxScaler
-import numpy as np
 from torch.optim import Adam
+
+import client as cl
+from client.loggers import ConsoleLogger
+from client.selection.selector import PeerSelector
 
 logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)
@@ -79,8 +80,8 @@ class EfficientPeerSelector(PeerSelector):
         sc_energy = minmaxscale(energy, 0, client.communication_energy(distance=client.lookup_dist))
 
         # Get tensors
-        t_kgain = torch.tensor(sc_kgain)
-        t_energy = torch.tensor(sc_energy)
+        t_kgain = torch.tensor(sc_kgain, dtype=torch.float)
+        t_energy = torch.tensor(sc_energy, dtype=torch.float)
         # Setup model + optimizer
         model = PeerSelectionModel(len(selected_neighbors), self.alpha, self.theta)
         early_stopping = CustomEarlyStopping(3, 1e-4)

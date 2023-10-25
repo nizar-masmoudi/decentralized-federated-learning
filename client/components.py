@@ -1,5 +1,6 @@
 import dataclasses
 from typing import ClassVar
+
 import numpy as np
 
 

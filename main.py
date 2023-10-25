@@ -1,8 +1,9 @@
 import argparse
+import copy
+import importlib
 import logging
 import warnings
 
-from torchvision.datasets import MNIST
 from torchvision.transforms import ToTensor
 
 from client import Client
@@ -10,8 +11,7 @@ from client.activation import FullActivator
 from client.aggregation import FedAvg
 from client.dataset.sampling import DataChunk
 from client.loggers import ConsoleLogger, JSONLogger
-from client.models import LightningConvNet
-from client.selection import RandPeerSelector
+from client.selection import NonePeerSelector
 
 # Disabling unnecessary warnings and logs
 warnings.filterwarnings('ignore', '.*does not have many workers which may be a bottleneck.*')
@@ -23,24 +23,29 @@ logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)
 
-json_logger = JSONLogger('decentralized-federated-learning', 'random-selection')
+json_logger = JSONLogger('decentralized-federated-learning', 'no-communication')
 
 
 def main():
     # Argparse
     parser = argparse.ArgumentParser(description='', formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--clients', type=int, default=3, help='Set the number of clients in the network')
-    parser.add_argument('--rounds', type=int, default=1, help='Set the number of federated learning rounds')
+    parser.add_argument('--clients', type=int, help='Set the number of clients in the network')
+    parser.add_argument('--rounds', type=int, help='Set the number of federated learning rounds')
+    parser.add_argument('--dataset', default='MNIST', choices=['MNIST', 'CIFAR10'], help='Dataset to use for training')
     args = parser.parse_args()
 
-    # Load dataset
-    dataset = MNIST(root='data', train=True, transform=ToTensor(), download=True)
-    test_ds = MNIST(root='data', train=False, transform=ToTensor(), download=True)
+    # Load Dataset
+    Dataset = getattr(importlib.import_module('torchvision.datasets'), args.dataset)
+    dataset = Dataset(root='data', train=True, transform=ToTensor(), download=True)
+    test_ds = DataChunk(Dataset(root='data', train=False, transform=ToTensor(), download=True), 1000)
+    # Load LightningModel
+    Model = getattr(importlib.import_module('client.models'), f'Lightning{args.dataset}')
+    model = Model()
 
     clients = []
     for _ in range(args.clients):
         activator = FullActivator()
-        selector = RandPeerSelector(.5)
+        selector = NonePeerSelector()
         aggregator = FedAvg()
 
         if json_logger.config == {}:
@@ -59,13 +64,20 @@ def main():
             json_logger.config['local_epochs'] = 3
             json_logger.config['geo_limits'] = ((36.897092, 10.152086), (36.870453, 10.219636))
 
+        local_model = copy.deepcopy(model)
+        local_model.id_ = _ + 1
+
         client = Client(
             geo_limits=((36.897092, 10.152086), (36.870453, 10.219636)),
-            model=LightningConvNet(),
-            train_ds=DataChunk(dataset, size=len(dataset)//args.clients, balanced_sampling=True),
+            model=local_model,
+            train_ds=DataChunk(
+                dataset,
+                size=len(dataset)//args.clients,
+                iid=True
+            ),
             test_ds=test_ds,
             local_epochs=3,
-            batch_size=16,
+            batch_size=64,
             activator=activator,
             aggregator=aggregator,
             selector=selector,
@@ -99,11 +111,12 @@ def main():
                 if receiver in sender.peers:
                     models.append(sender.model)
             receiver.aggregate(models)
-        logger.info('Round [{:>2}/{:>2}] ended'.format(round_ + 1, args.rounds))
+
         # Reset
         for client in clients:
             client.neighbors = []
             client.peers = []
+        logger.info('Round [{:>2}/{:>2}] ended'.format(round_ + 1, args.rounds))
 
     json_logger.save()
 

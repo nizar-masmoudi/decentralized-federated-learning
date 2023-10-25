@@ -1,6 +1,8 @@
-from client.aggregation.aggregator import Aggregator
-import torch
 from typing import List, Dict
+
+import torch
+
+from client.aggregation.aggregator import Aggregator
 
 
 class FedAvg(Aggregator):

@@ -1,8 +1,9 @@
-from abc import ABC, abstractmethod
-import client as cl
-from typing import List
-import random
 import itertools
+import random
+from abc import ABC, abstractmethod
+from typing import List
+
+import client as cl
 
 
 class PeerSelector(ABC):
@@ -21,6 +22,14 @@ class PeerSelector(ABC):
     @abstractmethod
     def select(self, client: 'cl.Client') -> List['cl.Client']:
         ...
+
+
+class NonePeerSelector(PeerSelector):
+    def __init__(self):
+        super().__init__()
+
+    def select(self, client: 'cl.Client') -> List['cl.Client']:
+        return []
 
 
 class FullPeerSelector(PeerSelector):
