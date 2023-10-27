@@ -23,18 +23,26 @@ class CIFAR10Model(nn.Module):
         self.relu1 = nn.ReLU()
         self.conv2 = nn.Conv2d(32, 64, 3, 1, 1)
         self.relu2 = nn.ReLU()
-        self.pool1 = nn.MaxPool2d(2, 2)  # output: 64 x 16 x 16
+        self.pool1 = nn.MaxPool2d(2, 2)
 
         self.conv3 = nn.Conv2d(64, 128, 3, 1, 1)
         self.relu3 = nn.ReLU()
-        self.conv4 = nn.Conv2d(128, 256, 3, 1, 1)
+        self.conv4 = nn.Conv2d(128, 128, 3, 1, 1)
         self.relu4 = nn.ReLU()
-        self.pool2 = nn.MaxPool2d(2, 2)  # output: 256 x 7 x 7
+        self.pool2 = nn.MaxPool2d(2, 2)  # output: 128 x 8 x 8
+
+        self.conv5 = nn.Conv2d(128, 256, 3, 1, 1)
+        self.relu5 = nn.ReLU()
+        self.conv6 = nn.Conv2d(256, 256, 3, 1, 1)
+        self.relu6 = nn.ReLU()
+        self.pool3 = nn.MaxPool2d(2, 2)
 
         self.flatten = nn.Flatten()
-        self.linear1 = nn.Linear(256 * 7 * 7, 512)
+        self.linear1 = nn.Linear(256 * 4 * 4, 1024)
         self.relu7 = nn.ReLU()
-        self.linear2 = nn.Linear(512, 10)
+        self.linear2 = nn.Linear(1024, 512)
+        self.relu8 = nn.ReLU()
+        self.linear3 = nn.Linear(512, 10)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.conv1(x)
@@ -49,10 +57,18 @@ class CIFAR10Model(nn.Module):
         x = self.relu4(x)
         x = self.pool2(x)
 
+        x = self.conv5(x)
+        x = self.relu5(x)
+        x = self.conv6(x)
+        x = self.relu6(x)
+        x = self.pool3(x)
+
         x = self.flatten(x)
         x = self.linear1(x)
         x = self.relu7(x)
         x = self.linear2(x)
+        x = self.relu8(x)
+        x = self.linear3(x)
         return x
 
     def count_flops(self):
@@ -82,7 +98,7 @@ class LightningCIFAR10(LightningModule):
 
         self.model = CIFAR10Model()
         self.loss_fn = nn.CrossEntropyLoss()
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.01)
         self.accuracy = Accuracy(task='multiclass', num_classes=10)
 
         self.training_step_outputs = {'loss': [], 'acc': []}
