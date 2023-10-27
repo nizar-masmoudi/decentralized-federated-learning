@@ -29,7 +29,7 @@ class CIFAR10Model(nn.Module):
         self.relu3 = nn.ReLU()
         self.conv4 = nn.Conv2d(128, 128, 3, 1, 1)
         self.relu4 = nn.ReLU()
-        self.pool2 = nn.MaxPool2d(2, 2)  # output: 128 x 8 x 8
+        self.pool2 = nn.MaxPool2d(2, 2)
 
         self.conv5 = nn.Conv2d(128, 256, 3, 1, 1)
         self.relu5 = nn.ReLU()
