@@ -24,18 +24,21 @@ class CIFAR10Model(nn.Module):
         self.conv2 = nn.Conv2d(32, 64, 3, 1, 1)
         self.relu2 = nn.ReLU()
         self.pool1 = nn.MaxPool2d(2, 2)
+        self.batchnorm1 = nn.BatchNorm2d(64)
 
         self.conv3 = nn.Conv2d(64, 128, 3, 1, 1)
         self.relu3 = nn.ReLU()
         self.conv4 = nn.Conv2d(128, 128, 3, 1, 1)
         self.relu4 = nn.ReLU()
         self.pool2 = nn.MaxPool2d(2, 2)
+        self.batchnorm2 = nn.BatchNorm2d(128)
 
         self.conv5 = nn.Conv2d(128, 256, 3, 1, 1)
         self.relu5 = nn.ReLU()
         self.conv6 = nn.Conv2d(256, 256, 3, 1, 1)
         self.relu6 = nn.ReLU()
         self.pool3 = nn.MaxPool2d(2, 2)
+        self.batchnorm3 = nn.BatchNorm2d(256)
 
         self.flatten = nn.Flatten()
         self.linear1 = nn.Linear(256 * 4 * 4, 1024)
@@ -50,22 +53,23 @@ class CIFAR10Model(nn.Module):
         x = self.conv2(x)
         x = self.relu2(x)
         x = self.pool1(x)
+        x = self.batchnorm1(x)
 
         x = self.conv3(x)
         x = self.relu3(x)
         x = self.conv4(x)
         x = self.relu4(x)
         x = self.pool2(x)
+        x = self.batchnorm2(x)
 
         x = self.conv5(x)
         x = self.relu5(x)
         x = self.conv6(x)
         x = self.relu6(x)
         x = self.pool3(x)
+        x = self.batchnorm3(x)
 
-        print(x.shape)
         x = self.flatten(x)
-        print(x.shape)
         x = self.linear1(x)
         x = self.relu7(x)
         x = self.linear2(x)
@@ -100,7 +104,7 @@ class LightningCIFAR10(LightningModule):
 
         self.model = CIFAR10Model()
         self.loss_fn = nn.CrossEntropyLoss()
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.01)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3, weight_decay=5e-4)
         self.accuracy = Accuracy(task='multiclass', num_classes=10)
 
         self.training_step_outputs = {'loss': [], 'acc': []}
