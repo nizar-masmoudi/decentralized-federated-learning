@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class CIFAR10Model(nn.Module):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.conv1 = nn.Conv2d(3, 32, 3, 1)
+        self.conv1 = nn.Conv2d(3, 32, 3, 1, 1)
         self.relu1 = nn.ReLU()
         self.conv2 = nn.Conv2d(32, 64, 3, 1, 1)
         self.relu2 = nn.ReLU()
@@ -63,7 +63,9 @@ class CIFAR10Model(nn.Module):
         x = self.relu6(x)
         x = self.pool3(x)
 
+        print(x.shape)
         x = self.flatten(x)
+        print(x.shape)
         x = self.linear1(x)
         x = self.relu7(x)
         x = self.linear2(x)
