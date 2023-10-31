@@ -58,7 +58,7 @@ class PeerSelectionModel(nn.Module):
 
 
 class EfficientPeerSelector(PeerSelector):
-    def __init__(self, alpha: float = 1, theta: float = .5, log_interval: int = 10):
+    def __init__(self, alpha: float = 1, theta: float = .5, log_interval: int = 20):
         super().__init__()
         self.alpha = alpha
         self.theta = theta
@@ -66,22 +66,22 @@ class EfficientPeerSelector(PeerSelector):
 
     def select(self, client: 'cl.Client') -> List['cl.Client']:
         selected_neighbors = list(filter(
-            lambda neighbor: (neighbor.model.loss_history[1] - client.model.loss_history[1]) > 0,
+            lambda neighbor: (neighbor.model.loss_history[-1] - client.model.loss_history[-1]) > 0,
             client.neighbors
         ))
         if len(selected_neighbors) == 0:
             return []
 
         # Get positive knowledge gain for each neighbor
-        kgain = [(neighbor.model.loss_history[1] - client.model.loss_history[1]) for neighbor in selected_neighbors]
-        sc_kgain = [min(kg, 1) for kg in kgain]
-        # Get communication energy for each neighbor
+        kgain = [client.knowledge_gain(neighbor) for neighbor in selected_neighbors]
+
+        # Get communication energy for each neighbor + Scaling
         energy = [client.communication_energy(neighbor) for neighbor in selected_neighbors]
-        sc_energy = minmaxscale(energy, 0, client.communication_energy(distance=client.lookup_dist))
+        energy = minmaxscale(energy, 0, client.communication_energy(distance=client.lookup_dist))
 
         # Get tensors
-        t_kgain = torch.tensor(sc_kgain, dtype=torch.float)
-        t_energy = torch.tensor(sc_energy, dtype=torch.float)
+        t_kgain = torch.tensor(kgain, dtype=torch.float)
+        t_energy = torch.tensor(energy, dtype=torch.float)
         # Setup model + optimizer
         model = PeerSelectionModel(len(selected_neighbors), self.alpha, self.theta)
         early_stopping = CustomEarlyStopping(3, 1e-4)
@@ -94,11 +94,11 @@ class EfficientPeerSelector(PeerSelector):
             optimizer.step()
 
             # Log
-            if epoch % self.log_interval == 0:
+            if epoch % self.log_interval == 0 or epoch == 1000:
                 report_str = 'Epoch [{:>3}/{:>3}] - Loss = {:.3f}'.format(epoch + 1, 1000, loss)
                 logger.info(report_str, extra={'id': self.id_})
             if early_stopping.stop(loss):
-                logger.info('Loss did not improve. Optimization has stopped at epoch {}!'.format(epoch),
+                logger.info('Early stopping at epoch [{:>3}/{:>3}] - Loss = {:.3f}'.format(epoch + 1, 1000, loss),
                             extra={'id': self.id_})
                 break
 

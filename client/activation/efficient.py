@@ -18,7 +18,7 @@ class EfficientActivator(Activator):
         sc_energy = (energy - min_energy) / (max_energy - min_energy)
 
         # Learning slope
-        slope = client.compute_lslope()
+        slope = client.learning_slope()
         sc_slope = min(slope, 1)
 
         # Activation cost

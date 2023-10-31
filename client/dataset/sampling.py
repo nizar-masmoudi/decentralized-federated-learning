@@ -26,7 +26,7 @@ class DataChunk(Subset):
             indices = list(WeightedRandomSampler(sample_weights, self.size, replacement=False))
             super().__init__(dataset, indices)
         else:
-            raise AttributeError("sataset has no attributes 'targets'")
+            raise AttributeError("dataset has no attributes 'targets'")
 
     def __repr__(self):
         return f'DataChunk(size={self.size}, iid={self.iid})'
