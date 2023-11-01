@@ -4,6 +4,7 @@ import os.path as osp
 import uuid
 from abc import ABC
 
+import numpy as np
 from lightning.pytorch.loggers.logger import Logger
 from lightning.pytorch.utilities import rank_zero_only
 
@@ -54,13 +55,18 @@ class JSONLogger(Logger, ABC):
 
     @rank_zero_only
     def add_client(self, client: 'cl.Client'):
+        targets = np.array([target for _, target in client.datachunk])
+
         self._json['clients'].append({
             'id': client.id_,
             'components': {
                 'cpu': client.cpu.to_dict(),
                 'transmitter': client.transmitter.to_dict(),
             },
-            'dataset': client.train_ds.to_dict(),
+            'dataset': {
+                'name': client.datachunk.__class__.__name__,
+                'distribution': [np.count_nonzero(targets == t) for t in range(10)]
+            },
             'computation_energy': client.computation_energy()
         })
 

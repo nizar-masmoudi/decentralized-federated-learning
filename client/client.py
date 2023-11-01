@@ -12,7 +12,6 @@ from torch.utils.data import Dataset, DataLoader
 from client.activation.activator import Activator
 from client.aggregation.aggregator import Aggregator
 from client.components import CPU, Transmitter
-from client.dataset.sampling import DataChunk
 from client.dataset.utils import train_valid_split
 from client.loggers import ConsoleLogger, JSONLogger
 from client.selection.selector import PeerSelector
@@ -32,8 +31,8 @@ class Client:
             *,
             geo_limits: Tuple[Tuple, Tuple],
             model: LightningModule,
-            train_ds: DataChunk,
-            test_ds: Dataset,
+            datachunk: Dataset,
+            testset: Dataset,
             local_epochs: int,
             batch_size: int = 32,
             valid_split: float = .1,
@@ -47,8 +46,8 @@ class Client:
         """
         Initialize a client.
         :param model: An implemented PyTorch Lightning Module.
-        :param train_ds: A PyTorch Dataset. A portion of it will later be reserved for validation.
-        :param test_ds: A PyTorch Dataset used to test the client's local model.
+        :param datachunk: A PyTorch Dataset. A portion of it will later be reserved for validation.
+        :param testset: A PyTorch Dataset used to test the client's local model.
         :param local_epochs: Local training epochs per round.
         :param batch_size: Dataloaders' batch size.
         :param valid_split: Validation split will be taken from train_ds.
@@ -62,8 +61,8 @@ class Client:
         self.id_ = next(Client.inc)
 
         self.model = model
-        self.train_ds = train_ds
-        self.test_ds = test_ds
+        self.datachunk = datachunk
+        self.testset = testset
 
         self.local_epochs = local_epochs
         self.batch_size = batch_size
@@ -153,7 +152,7 @@ class Client:
         Calculate computation energy.
         :return: Computation energy
         """
-        energy = (self.local_epochs * self.cpu.kappa * self.model.flops * len(self.train_ds) *
+        energy = (self.local_epochs * self.cpu.kappa * self.model.flops * len(self.datachunk) *
                   (self.cpu.frequency ** 2) / self.cpu.fpc)
         logger.debug('Computation energy = {:.3f} mW'.format(energy * 1e3), extra={'id': self.id_})
         return energy
@@ -188,7 +187,7 @@ class Client:
         trainer = Trainer(max_epochs=self.local_epochs, enable_checkpointing=False, logger=self.json_logger,
                           log_every_n_steps=1, enable_model_summary=False, enable_progress_bar=False)
         logger.info('Local training process started', extra={'id': self.id_})
-        train_ds, valid_ds = train_valid_split(self.train_ds, .1)
+        train_ds, valid_ds = train_valid_split(self.datachunk, .1)
         train_dl = DataLoader(train_ds, batch_size=self.batch_size)
         valid_dl = DataLoader(valid_ds, batch_size=self.batch_size)
         trainer.fit(self.model, train_dl, valid_dl)
@@ -198,7 +197,7 @@ class Client:
         trainer = Trainer(max_epochs=self.local_epochs, enable_checkpointing=False, logger=self.json_logger,
                           log_every_n_steps=1, enable_model_summary=False, enable_progress_bar=False)
         logger.info('Model testing process started', extra={'id': self.id_})
-        test_dl = DataLoader(self.test_ds, batch_size=self.batch_size)
+        test_dl = DataLoader(self.testset, batch_size=self.batch_size)
         trainer.test(self.model, test_dl, verbose=False)
         logger.info('Model testing process ended', extra={'id': self.id_})
 

@@ -4,12 +4,13 @@ import importlib
 import logging
 import warnings
 
+from torch.utils.data import Subset
 from torchvision.transforms import ToTensor
 
 from client import Client
 from client.activation import FullActivator
 from client.aggregation import FedAvg
-from client.dataset.sampling import DataChunk
+from client.dataset.federated import DataChunkGenerator
 from client.loggers import ConsoleLogger, JSONLogger
 from client.selection import NonePeerSelector
 
@@ -37,7 +38,10 @@ def main():
     # Load Dataset
     Dataset = getattr(importlib.import_module('torchvision.datasets'), args.dataset)
     dataset = Dataset(root='data', train=True, transform=ToTensor(), download=True)
-    test_ds = DataChunk(Dataset(root='data', train=False, transform=ToTensor(), download=True), 1000)
+    chunk_iterator = iter(DataChunkGenerator(dataset, args.clients, 1))
+
+    testset = Dataset(root='data', train=False, transform=ToTensor(), download=True)
+
     # Load LightningModel
     Model = getattr(importlib.import_module('client.models'), f'Lightning{args.dataset}')
     model = Model()
@@ -67,15 +71,13 @@ def main():
         local_model = copy.deepcopy(model)
         local_model.id_ = _ + 1
 
+        datachunk = Subset(dataset, next(chunk_iterator))
+
         client = Client(
             geo_limits=((36.897092, 10.152086), (36.870453, 10.219636)),
             model=local_model,
-            train_ds=DataChunk(
-                dataset,
-                size=len(dataset)//args.clients,
-                iid=True
-            ),
-            test_ds=test_ds,
+            datachunk=datachunk,
+            testset=testset,
             local_epochs=3,
             batch_size=64,
             activator=activator,

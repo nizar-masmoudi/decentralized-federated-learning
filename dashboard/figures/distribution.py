@@ -1,4 +1,5 @@
 import plotly.graph_objects as go
+
 from dashboard.figures.layouts import BarPlotLayout
 
 
@@ -21,6 +22,6 @@ class DistributionFigure(go.Figure):
 
         layout = BarPlotLayout()
         layout.xaxis.range = [-1, 10]
-        layout.yaxis.range = [0, 500]
+        layout.yaxis.range = [0, 5000]
         layout.xaxis.tickvals = list(range(0, 10))
         super().__init__(data, layout)
