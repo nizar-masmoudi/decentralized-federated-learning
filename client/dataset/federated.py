@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from torch.utils.data import Dataset
 
 
@@ -16,7 +17,7 @@ class DataChunkGenerator:
         self.chunkz = [[] for _ in range(size)]
 
         if hasattr(dataset, 'targets'):
-            targets = dataset.targets.numpy()
+            targets = dataset.targets.numpy() if torch.is_tensor(dataset.targets) else np.array(dataset.targets)
             for target in np.unique(targets):
                 indices = np.argwhere(targets == target)
 
