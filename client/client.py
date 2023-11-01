@@ -133,7 +133,7 @@ class Client:
             logger.info('Client found 0 clients nearby', extra={'id': self.id_})
         self.json_logger.log_neighbors(self)
 
-    def compute_lslope(self) -> float:
+    def learning_slope(self) -> float:
         """
         Calculate learning slope.
         :return: Learning slope
@@ -141,6 +141,12 @@ class Client:
         if self.model.loss_history[0] == math.inf:  # Model hasn't been activated yet
             return math.inf
         return abs(self.model.loss_history[1] - self.model.loss_history[0])
+
+    def knowledge_gain(self, neighbor: 'Client') -> float:
+        ln = self.model.loss_history[-1]
+        lk = neighbor.model.loss_history[-1]
+        delta = lk - ln
+        return 1 - math.exp(-2 * delta)
 
     def computation_energy(self) -> float:
         """
