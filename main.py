@@ -38,16 +38,16 @@ def main():
     # Load Dataset
     Dataset = getattr(importlib.import_module('torchvision.datasets'), args.dataset)
     dataset = Dataset(root='data', train=True, transform=ToTensor(), download=True)
-    chunk_iterator = iter(DataChunkGenerator(dataset, args.clients, 1))
+    chunks = iter(DataChunkGenerator(dataset, args.clients, 1))
 
     testset = Dataset(root='data', train=False, transform=ToTensor(), download=True)
 
     # Load LightningModel
     Model = getattr(importlib.import_module('client.models'), f'Lightning{args.dataset}')
-    model = Model()
+    base_model = Model()
 
     clients = []
-    for _ in range(args.clients):
+    for id_ in range(1, args.clients + 1):
         activator = FullActivator()
         selector = NonePeerSelector()
         aggregator = FedAvg()
@@ -68,14 +68,14 @@ def main():
             json_logger.config['local_epochs'] = 3
             json_logger.config['geo_limits'] = ((36.897092, 10.152086), (36.870453, 10.219636))
 
-        local_model = copy.deepcopy(model)
-        local_model.id_ = _ + 1
+        model = copy.deepcopy(base_model)
+        model.id_ = id_
 
-        datachunk = Subset(dataset, next(chunk_iterator))
+        datachunk = Subset(dataset, next(chunks))
 
         client = Client(
             geo_limits=((36.897092, 10.152086), (36.870453, 10.219636)),
-            model=local_model,
+            model=model,
             datachunk=datachunk,
             testset=testset,
             local_epochs=3,
