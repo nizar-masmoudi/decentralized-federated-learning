@@ -145,7 +145,7 @@ class Client:
         ln = self.model.loss_history[-1]
         lk = neighbor.model.loss_history[-1]
         delta = lk - ln
-        return 1 - math.exp(-2 * delta)
+        return (1 - math.exp(-2 * delta)) * (delta > 0)
 
     def computation_energy(self) -> float:
         """
