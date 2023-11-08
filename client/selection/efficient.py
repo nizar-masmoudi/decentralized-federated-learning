@@ -40,50 +40,46 @@ class CustomEarlyStopping:
 
 
 class PeerSelectionModel(nn.Module):
-    def __init__(self, n_samples: int, alpha: float = 1, theta: float = 0.5):
+    def __init__(self, n_samples: int, theta: float = 0.1):
         super().__init__()
         # Attributes
-        self.alpha = alpha
         self.theta = theta
         self.n_samples = n_samples
         # Optimization parameters
         self.weights = nn.Parameter(torch.rand(self.n_samples))
 
     def forward(self, gain: torch.Tensor, energy: torch.Tensor):
-        return ((self.alpha * torch.dot(torch.sigmoid(self.weights), energy) /
-                 torch.dot(torch.sigmoid(self.weights), gain)) + (self.theta / torch.sigmoid(self.weights).sum()))
+        reward = (torch.dot(torch.sigmoid(self.weights), gain) /
+                  torch.dot(torch.sigmoid(self.weights), energy))
+        regularization = torch.norm(self.weights, p=2)
+        return reward + self.theta * regularization
 
     def get_betas(self):
         return torch.sigmoid(self.weights)
 
 
 class EfficientPeerSelector(PeerSelector):
-    def __init__(self, alpha: float = 1, theta: float = .5, log_interval: int = 20):
+    def __init__(self, theta: float = .02, log_interval: int = 20):
         super().__init__()
-        self.alpha = alpha
         self.theta = theta
         self.log_interval = log_interval
 
     def select(self, client: 'cl.Client') -> List['cl.Client']:
-        selected_neighbors = list(filter(
-            lambda neighbor: (neighbor.model.loss_history[-1] - client.model.loss_history[-1]) > 0,
-            client.neighbors
-        ))
-        if len(selected_neighbors) == 0:
+        if len(client.neighbors) == 0:
             return []
 
         # Get positive knowledge gain for each neighbor
-        kgain = [client.knowledge_gain(neighbor) for neighbor in selected_neighbors]
+        kgain = [client.knowledge_gain(neighbor) for neighbor in client.neighbors]
 
         # Get communication energy for each neighbor + Scaling
-        energy = [client.communication_energy(neighbor) for neighbor in selected_neighbors]
+        energy = [client.communication_energy(neighbor) for neighbor in client.neighbors]
         energy = minmaxscale(energy, 0, client.communication_energy(distance=client.lookup_dist))
 
         # Get tensors
         t_kgain = torch.tensor(kgain, dtype=torch.float)
         t_energy = torch.tensor(energy, dtype=torch.float)
         # Setup model + optimizer
-        model = PeerSelectionModel(len(selected_neighbors), self.alpha, self.theta)
+        model = PeerSelectionModel(len(client.neighbors), self.theta)
         early_stopping = CustomEarlyStopping(3, 1e-4)
         optimizer = Adam(model.parameters(), lr=.1)
         # Optimize
@@ -103,5 +99,5 @@ class EfficientPeerSelector(PeerSelector):
                 break
 
         mask = model.get_betas().detach().numpy().round().astype(bool)
-        peers = [selected_neighbors[i] for i in range(len(selected_neighbors)) if mask[i]]
+        peers = [client.neighbors[i] for i in range(len(client.neighbors)) if mask[i]]
         return peers
