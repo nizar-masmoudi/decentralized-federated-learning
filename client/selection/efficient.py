@@ -81,7 +81,7 @@ class EfficientPeerSelector(PeerSelector):
         # Setup model + optimizer
         model = PeerSelectionModel(len(client.neighbors), self.theta)
         early_stopping = CustomEarlyStopping(3, 1e-4)
-        optimizer = Adam(model.parameters(), lr=.1)
+        optimizer = Adam(model.parameters(), lr=.1, maximize=True)
         # Optimize
         for epoch in range(1000):
             optimizer.zero_grad()
