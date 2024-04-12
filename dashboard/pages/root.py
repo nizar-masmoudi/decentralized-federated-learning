@@ -13,4 +13,3 @@ layout = html.Div([
         AggLossAIO()
     ], className='flex flex-col space-y-7 w-full min-h-screen p-7 pl-[268px]')
 ], className='relative w-full h-full overflow-hidden')
-

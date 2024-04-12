@@ -97,7 +97,6 @@ class LightningCIFAR10(LightningModule):
 
         summary = get_module_summary(self)
         self.size_bytes = summary.size_bytes
-        self.flops = sum(self.model.count_flops())
 
     def __repr__(self):
         summary = get_module_summary(self)
