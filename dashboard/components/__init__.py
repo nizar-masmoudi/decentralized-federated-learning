@@ -1,4 +1,5 @@
 from dashboard.components.activity import ActivityAIO
+from dashboard.components.aggloss import AggLossAIO
 from dashboard.components.communication import CommunicationEnergyAIO
 from dashboard.components.distribution import DistributionAIO
 from dashboard.components.globalaccuracy import GlobalAccuracyAIO

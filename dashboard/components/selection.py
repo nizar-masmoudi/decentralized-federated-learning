@@ -1,7 +1,9 @@
-from dash import html, dcc, callback, Input, Output, MATCH
-from dashboard.figures import SelectionFigure
-import numpy as np
 import uuid
+
+import numpy as np
+from dash import html, dcc, callback, Input, Output, MATCH
+
+from dashboard.figures import SelectionFigure
 
 
 # noinspection PyMethodParameters
@@ -40,14 +42,17 @@ class SelectionAIO(html.Div):
 
         x = list(range(1, len(data['clients'][0]['activity']) + 1))
         ys = {'Rate': []}
+        rates = []
         for client in data['clients']:
             # Filter neighbors according to client activity
             activity = np.array(client['activity'])
             neighbors_count = np.array(list(map(lambda l: len(l), client['neighbors'])))[activity]
             peers_count = np.array(list(map(lambda l: len(l), client['peers'])))
 
-            rate = np.divide(peers_count[neighbors_count != 0], neighbors_count[neighbors_count != 0]).mean()
-            ys['Rate'].append(rate)
+            rates.append(np.divide(peers_count[neighbors_count != 0], neighbors_count[neighbors_count != 0]))
+
+        rates = np.array(rates)
+        ys['Rate'] = rates.mean(0)
 
         figure = SelectionFigure(x, ys)
         figure.layout.xaxis.range = [1, len(x)]

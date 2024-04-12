@@ -1,4 +1,3 @@
-import copy
 import itertools
 import logging
 import math
@@ -7,7 +6,6 @@ import torch
 import torch.nn as nn
 from lightning.pytorch import LightningModule
 from torchmetrics import Accuracy
-from torchtnt.utils.flops import FlopTensorDispatchMode
 from torchtnt.utils.module_summary import get_module_summary
 
 from client.loggers import ConsoleLogger
@@ -46,23 +44,6 @@ class MNISTModel(nn.Module):
         x = self.dropout3(x)
         x = self.fc4(x)
         return x
-
-    def count_flops(self):
-        input_ = torch.randn(1, 1, 28, 28)
-        with FlopTensorDispatchMode(self) as ftdm:
-            # count forward flops
-            output = self(input_).mean()
-            ff_dict = copy.deepcopy(ftdm.flop_counts)
-            flops_forward = ff_dict['']['convolution.default']
-            flops_forward += ff_dict['']['addmm.default']
-
-            # reset count before counting backward flops
-            ftdm.reset()
-            output.backward()
-            fb_dict = copy.deepcopy(ftdm.flop_counts)
-            flops_backward = fb_dict['']['convolution_backward.default']
-            flops_backward += fb_dict['']['mm.default']
-        return flops_forward, flops_backward
 
 
 class LightningMNIST(LightningModule):

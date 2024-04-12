@@ -6,6 +6,9 @@ from client.aggregation.aggregator import Aggregator
 
 
 class FedAvg(Aggregator):
+    """
+    Federated averaging policy class.
+    """
     def __init__(self):
         super().__init__()
 

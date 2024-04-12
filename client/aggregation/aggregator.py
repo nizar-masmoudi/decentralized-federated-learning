@@ -4,7 +4,7 @@ from typing import Dict, List
 
 class Aggregator(ABC):
     """
-    Abstract class of aggregator.
+    Abstract class used to create custom aggregators.
     """
     def __init__(self):
         ...

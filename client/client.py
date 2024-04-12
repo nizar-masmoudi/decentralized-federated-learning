@@ -45,6 +45,8 @@ class Client:
     ):
         """
         Initialize a client.
+        :param geo_limits: Geographical limits within which clients move, represented as a tuple of tuple,
+        (lat_min, lon_min), (lat_max, lon_max).
         :param model: An implemented PyTorch Lightning Module.
         :param datachunk: A PyTorch Dataset. A portion of it will later be reserved for validation.
         :param testset: A PyTorch Dataset used to test the client's local model.
@@ -57,6 +59,7 @@ class Client:
         :param activator: Client activator.
         :param aggregator: Model aggregator.
         :param selector: Peer selector.
+        :param json_logger: JSONLogger instance.
         """
         self.id_ = next(Client.inc)
 
@@ -84,7 +87,6 @@ class Client:
         self.peers: List['Client'] = []
         self.is_active = False
 
-        # self.simulation_dict = None
         self.json_logger = json_logger
 
         logger.debug(repr(self), extra={'id': self.id_})
@@ -132,36 +134,22 @@ class Client:
             logger.info('Client found 0 clients nearby', extra={'id': self.id_})
         self.json_logger.log_neighbors(self)
 
-    def learning_slope(self) -> float:
-        """
-        Calculate learning slope.
-        :return: Learning slope
-        """
-        if self.model.loss_history[0] == math.inf:  # Model hasn't been activated yet
-            return math.inf
-        return abs(self.model.loss_history[1] - self.model.loss_history[0])
-
     def knowledge_gain(self, neighbor: 'Client') -> float:
+        """
+        Compute knowledge gain with neighbor.
+        :param neighbor: Neighbor to compute KG with.
+        :return: Knowledge gain.
+        """
         ln = self.model.loss_history[-1]
         lk = neighbor.model.loss_history[-1]
         delta = lk - ln
         return (1 - math.exp(-2 * delta)) * (delta > 0)
 
-    def computation_energy(self) -> float:
-        """
-        Calculate computation energy.
-        :return: Computation energy
-        """
-        energy = (self.local_epochs * self.cpu.kappa * self.model.flops * len(self.datachunk) *
-                  (self.cpu.frequency ** 2) / self.cpu.fpc)
-        logger.debug('Computation energy = {:.3f} mW'.format(energy * 1e3), extra={'id': self.id_})
-        return energy
-
     def communication_energy(self, peer: 'Client' = None, distance: float = None) -> float:
         """
         Calculate communication energy consumed by client when communicating with specified peer.
-        :param distance: Distance between client and peer (used only when peer is None).
         :param peer: Peer communication with client (used only when distance is None).
+        :param distance: Distance between client and peer (used only when peer is None).
         :return: Communication energy
         """
         if peer is None and distance is None:
@@ -184,6 +172,9 @@ class Client:
         return energy
 
     def train(self):
+        """
+        Run a local training round.
+        """
         trainer = Trainer(max_epochs=self.local_epochs, enable_checkpointing=False, logger=self.json_logger,
                           log_every_n_steps=1, enable_model_summary=False, enable_progress_bar=False)
         logger.info('Local training process started', extra={'id': self.id_})
@@ -194,6 +185,9 @@ class Client:
         logger.info('Local training process ended', extra={'id': self.id_})
 
     def test(self):
+        """
+        Run a local test round.
+        """
         trainer = Trainer(max_epochs=self.local_epochs, enable_checkpointing=False, logger=self.json_logger,
                           log_every_n_steps=1, enable_model_summary=False, enable_progress_bar=False)
         logger.info('Model testing process started', extra={'id': self.id_})
@@ -202,6 +196,10 @@ class Client:
         logger.info('Model testing process ended', extra={'id': self.id_})
 
     def aggregate(self, models: List[LightningModule]):
+        """
+        Aggregate local model with shared models.
+        :param models: Models shared by selected neighbors.
+        """
         logger.info('Model aggregation process started with peers: {}'.format(
             ', '.join([f'Client{model.id_}' for model in models])), extra={'id': self.id_})
 
@@ -212,6 +210,9 @@ class Client:
         logger.info('Model aggregation process ended', extra={'id': self.id_})
 
     def activate(self):
+        """
+        Activate client to participate in the next round.
+        """
         logger.info('Client activation process started', extra={'id': self.id_})
         is_active = self.activator.activate(self)
         self.is_active = is_active
@@ -220,6 +221,9 @@ class Client:
         self.json_logger.log_activity(self)
 
     def select_peers(self):
+        """
+        Amongst neighbors, select peers to share local model with.
+        """
         logger.info('Peer selection process started', extra={'id': self.id_})
         peers = self.selector.select(self)
         peers_str = ', '.join(str(peer) for peer in peers)

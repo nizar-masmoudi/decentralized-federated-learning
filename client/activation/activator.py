@@ -1,14 +1,13 @@
-from abc import ABC, abstractmethod
-import random
 import itertools
+from abc import ABC, abstractmethod
 
 
 class Activator(ABC):
+    """
+    Abstract class used to create custom activators.
+    """
     inc = itertools.count(start=1)
 
-    """
-    Abstract class of activator.
-    """
     def __init__(self):
         self.id_ = next(Activator.inc)
 
@@ -27,17 +26,11 @@ class Activator(ABC):
 
 
 class FullActivator(Activator):
+    """
+    Full activation policy class. All clients are active during each round.
+    """
     def __init__(self):
         super().__init__()
 
     def activate(self, *args) -> bool:
         return True
-
-
-class RandActivator(Activator):
-    def __init__(self, p: float):
-        super().__init__()
-        self.p = p
-
-    def activate(self, *args) -> bool:
-        return random.random() < self.p

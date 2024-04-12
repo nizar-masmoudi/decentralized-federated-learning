@@ -12,6 +12,9 @@ import client as cl
 
 
 class JSONLogger(Logger, ABC):
+    """
+    JSON logger used to log client metrics and information during rounds of federated learning.
+    """
     def __init__(
             self,
             project: str,
@@ -55,6 +58,10 @@ class JSONLogger(Logger, ABC):
 
     @rank_zero_only
     def add_client(self, client: 'cl.Client'):
+        """
+        Add client metadata.
+        :param client: client to add.
+        """
         targets = np.array([target for _, target in client.datachunk])
 
         self._json['clients'].append({
@@ -67,11 +74,14 @@ class JSONLogger(Logger, ABC):
                 'name': client.datachunk.__class__.__name__,
                 'distribution': [np.count_nonzero(targets == t) for t in range(10)]
             },
-            'computation_energy': client.computation_energy()
         })
 
     @rank_zero_only
     def log_location(self, client: 'cl.Client'):
+        """
+        Log client location.
+        :param client: client to log.
+        """
         # Lookup client
         obj = next((item for item in self._json['clients'] if item['id'] == client.id_), None)
         assert obj is not None
@@ -83,6 +93,11 @@ class JSONLogger(Logger, ABC):
 
     @rank_zero_only
     def log_metrics(self, metrics: dict, step: int = None):
+        """
+        Log client metrics.
+        :param metrics: metrics to log.
+        :param step: log step.
+        """
         id_ = int(list(metrics.keys())[0].split('/')[0])
         metrics = {k[k.find('/') + 1:]: v for k, v in metrics.items()}
         # Lookup client
@@ -97,6 +112,10 @@ class JSONLogger(Logger, ABC):
 
     @rank_zero_only
     def log_activity(self, client: 'cl.Client'):
+        """
+        Log client activity.
+        :param client: client to log.
+        """
         # Lookup client
         obj = next((item for item in self._json['clients'] if item['id'] == client.id_), None)
         assert obj is not None
@@ -108,6 +127,10 @@ class JSONLogger(Logger, ABC):
 
     @rank_zero_only
     def log_neighbors(self, client: 'cl.Client'):
+        """
+        Log client neighbors.
+        :param client: client to log.
+        """
         # Lookup client
         obj = next((item for item in self._json['clients'] if item['id'] == client.id_), None)
         assert obj is not None
@@ -127,6 +150,10 @@ class JSONLogger(Logger, ABC):
 
     @rank_zero_only
     def log_peers(self, client: 'cl.Client'):
+        """
+        Log client peers.
+        :param client: client to log.
+        """
         # Lookup client
         obj = next((item for item in self._json['clients'] if item['id'] == client.id_), None)
         assert obj is not None
@@ -146,6 +173,9 @@ class JSONLogger(Logger, ABC):
 
     @rank_zero_only
     def save(self):
+        """
+        Save JSON file.
+        """
         if not osp.exists(self._save_dir):
             os.makedirs(self._save_dir)
         with open(osp.join(self._save_dir, f'{self._name}.json'), 'w') as file:

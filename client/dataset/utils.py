@@ -3,7 +3,7 @@ from torch.utils.data import Dataset, random_split
 
 def train_valid_split(dataset: Dataset, validation_split: float = .1):
     """
-    Split dataset into train and vlidation splits.
+    Split dataset into train and validation splits.
     :param dataset: Dataset to split.
     :param validation_split: Validation split
     :return: Train and validation splits

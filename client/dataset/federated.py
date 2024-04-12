@@ -6,10 +6,10 @@ from torch.utils.data import Dataset
 class DataChunkGenerator:
     def __init__(self, dataset: Dataset, size: int, alpha: float = 1000):
         """
-        Sample dataset using Dirichlet distribution
-        :type size: Number of datachunks to sample
-        :param dataset: Dataset to sample from
-        :param alpha: Dirichlet parameter
+        Data chunk generator class used to sample data chunks following Dirichlet distribution.
+        :param dataset: Dataset to sample from.
+        :type size: Number of datachunks to sample.
+        :param alpha: Dirichlet parameter.
         """
         self.dataset = dataset
         self.size = size

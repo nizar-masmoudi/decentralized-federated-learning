@@ -12,7 +12,7 @@ from client.activation import FullActivator
 from client.aggregation import FedAvg
 from client.dataset.federated import DataChunkGenerator
 from client.loggers import ConsoleLogger, JSONLogger
-from client.selection import NonePeerSelector
+from client.selection import EfficientPeerSelector
 
 # Disabling unnecessary warnings and logs
 warnings.filterwarnings('ignore', '.*does not have many workers which may be a bottleneck.*')
@@ -24,7 +24,7 @@ logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 logging.setLoggerClass(ConsoleLogger)
 logger = logging.getLogger(__name__)
 
-json_logger = JSONLogger('decentralized-federated-learning', 'no-communication')
+json_logger = JSONLogger('decentralized-federated-learning', 'opportunistic-communication')
 
 
 def main():
@@ -49,7 +49,7 @@ def main():
     clients = []
     for id_ in range(1, args.clients + 1):
         activator = FullActivator()
-        selector = NonePeerSelector()
+        selector = EfficientPeerSelector(1, 3)
         aggregator = FedAvg()
 
         if json_logger.config == {}:

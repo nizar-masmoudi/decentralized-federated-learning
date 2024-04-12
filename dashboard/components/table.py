@@ -22,29 +22,32 @@ class TableAIO(html.Div):
             with open(file) as json_file:
                 data = json.load(json_file)
 
-                avg_localloss = np.mean([client['train/loss'][-1] for client in data['clients']])
-                avg_localacc = np.mean([client['train/accuracy'][-1] for client in data['clients']])
                 avg_globalloss = np.mean([client['test/loss'][-1] for client in data['clients']])
+                std_globalloss = np.std([client['test/loss'][-1] for client in data['clients']])
                 avg_globalacc = np.mean([client['test/accuracy'][-1] for client in data['clients']])
+                std_globalacc = np.std([client['test/accuracy'][-1] for client in data['clients']])
                 total_comm_energy = np.sum([sum([item['energy'] for sublist in client['peers'] for item in sublist]) for client in data['clients']])
                 total_comp_energy = np.sum([client['computation_energy'] * sum(client['activity']) for client in data['clients']])
+
+                print(file, total_comm_energy)
 
                 table.append([
                     '{:02d}'.format(i + 1),
                     data['name'],
+                    data['clients'][0]['dataset']['name'],
                     TableAIO.format_policy_params({'activator': data['config']['activator']}),
                     TableAIO.format_policy_params({'aggregator': data['config']['aggregator']}),
                     TableAIO.format_policy_params({'selector': data['config']['selector']}),
-                    round(avg_localloss, 2),
-                    round(avg_localacc, 2),
                     round(avg_globalloss, 2),
+                    round(std_globalloss, 2),
                     round(avg_globalacc, 2),
-                    round(total_comm_energy * 1e3, 2),
-                    round(total_comp_energy, 2),
+                    round(std_globalacc, 2),
+                    round(total_comm_energy, 2),
+                    round(total_comp_energy / 1e3, 2),
                 ])
-        df = pd.DataFrame(table, columns=['#', 'Name', 'Activation policy', 'Aggregation policy', 'Selection policy',
-                                          'Local loss', 'Local accuracy', 'Global loss', 'Global accuracy',
-                                          'Communication energy (mJ)', 'Computation energy (J)'])
+        df = pd.DataFrame(table, columns=['#', 'Name', 'Dataset', 'Activation policy', 'Aggregation policy',
+                                          'Selection policy', 'Average loss', 'Loss std.', 'Average accuracy',
+                                          'Accuracy std.', 'Communication energy (J)', 'Computation energy (kJ)'])
 
         super().__init__([
             html.H2('Runs', className='font-semibold text-lg'),
@@ -79,22 +82,42 @@ class TableAIO(html.Div):
                     },
                     {
                         'if': {
-                            'filter_query': '{{Communication energy (mJ)}} = {}'.format(
-                                df['Communication energy (mJ)'].max()
+                            'filter_query': '{{Communication energy (J)}} = {}'.format(
+                                df['Communication energy (J)'].max()
                             ),
-                            'column_id': 'Communication energy (mJ)'
+                            'column_id': 'Communication energy (J)'
+                        },
+                        'backgroundColor': '#FF6969',
+                        'color': 'white'
+                    },
+                    {
+                        'if': {
+                            'filter_query': '{{Communication energy (J)}} = {}'.format(
+                                df['Communication energy (J)'].min()
+                            ),
+                            'column_id': 'Communication energy (J)'
                         },
                         'backgroundColor': '#79AC78',
                         'color': 'white'
                     },
                     {
                         'if': {
-                            'filter_query': '{{Communication energy (mJ)}} = {}'.format(
-                                df['Communication energy (mJ)'].min()
+                            'filter_query': '{{Average loss}} = {}'.format(
+                                df['Average loss'].max()
                             ),
-                            'column_id': 'Communication energy (mJ)'
+                            'column_id': 'Average loss'
                         },
                         'backgroundColor': '#FF6969',
+                        'color': 'white'
+                    },
+                    {
+                        'if': {
+                            'filter_query': '{{Average loss}} = {}'.format(
+                                df['Average loss'].min()
+                            ),
+                            'column_id': 'Average loss'
+                        },
+                        'backgroundColor': '#79AC78',
                         'color': 'white'
                     },
                 ]
@@ -111,10 +134,10 @@ class TableAIO(html.Div):
             if props['policy'].startswith('Full'):
                 return 'Full'
             elif props['policy'].startswith('Rand'):
-                return 'Random (Probability = {})'.format(props['p'])
+                return 'Random (p = {})'.format(props['p'])
             elif props['policy'].startswith('Efficient'):
                 if name == 'activator':
                     return 'Efficient (α = {}, threshold = {})'.format(props['alpha'], props['threshold'])
                 elif name == 'selector':
-                    return 'Efficient (α = {}, θ = {})'.format(props['alpha'], props['theta'])
-        return None
+                    return 'Efficient (θ = {})'.format(props['theta'])
+        return '-'
