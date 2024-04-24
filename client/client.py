@@ -145,6 +145,16 @@ class Client:
         delta = lk - ln
         return (1 - math.exp(-2 * delta)) * (delta > 0)
 
+    def computation_energy(self) -> float:
+        """
+        Calculate computation energy.
+        :return: Computation energy
+        """
+        energy = (self.local_epochs * self.cpu.kappa * self.model.flops * len(self.datachunk) *
+                  (self.cpu.frequency ** 2) / self.cpu.fpc)
+        logger.debug('Computation energy = {:.3f} mW'.format(energy * 1e3), extra={'id': self.id_})
+        return energy
+
     def communication_energy(self, peer: 'Client' = None, distance: float = None) -> float:
         """
         Calculate communication energy consumed by client when communicating with specified peer.
