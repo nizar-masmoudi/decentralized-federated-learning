@@ -162,12 +162,14 @@ class JSONLogger(Logger, ABC):
             obj['peers'] = [[{
                 'id': peer.id_,
                 'energy': client.communication_energy(peer),
+                'kg': client.knowledge_gain(peer),
                 'distance': cl.Client.distance(client, peer),
             } for peer in client.peers]]
         else:
             obj['peers'].append([{
                 'id': peer.id_,
                 'energy': client.communication_energy(peer),
+                'kg': client.knowledge_gain(peer),
                 'distance': cl.Client.distance(client, peer),
             } for peer in client.peers])
 
