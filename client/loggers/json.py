@@ -139,12 +139,14 @@ class JSONLogger(Logger, ABC):
             obj['neighbors'] = [[{
                 'id': neighbor.id_,
                 'energy': client.communication_energy(neighbor),
+                'kg': client.knowledge_gain(neighbor).detach().numpy(),
                 'distance': cl.Client.distance(client, neighbor),
             } for neighbor in client.neighbors]]
         else:
             obj['neighbors'].append([{
                 'id': neighbor.id_,
                 'energy': client.communication_energy(neighbor),
+                'kg': client.knowledge_gain(neighbor).detach().numpy(),
                 'distance': cl.Client.distance(client, neighbor),
             } for neighbor in client.neighbors])
 
@@ -162,14 +164,14 @@ class JSONLogger(Logger, ABC):
             obj['peers'] = [[{
                 'id': peer.id_,
                 'energy': client.communication_energy(peer),
-                'kg': client.knowledge_gain(peer),
+                'kg': client.knowledge_gain(peer).detach().numpy(),
                 'distance': cl.Client.distance(client, peer),
             } for peer in client.peers]]
         else:
             obj['peers'].append([{
                 'id': peer.id_,
                 'energy': client.communication_energy(peer),
-                'kg': client.knowledge_gain(peer),
+                'kg': client.knowledge_gain(peer).detach().numpy(),
                 'distance': cl.Client.distance(client, peer),
             } for peer in client.peers])
 
