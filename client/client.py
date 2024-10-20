@@ -5,6 +5,7 @@ import random
 from typing import List
 from typing import Tuple
 
+import torch
 from lightning.pytorch import LightningModule
 from lightning.pytorch import Trainer
 from torch.utils.data import Dataset, DataLoader
@@ -134,7 +135,7 @@ class Client:
             logger.info('Client found 0 clients nearby', extra={'id': self.id_})
         self.json_logger.log_neighbors(self)
 
-    def knowledge_gain(self, neighbor: 'Client') -> float:
+    def knowledge_gain(self, neighbor: 'Client') -> torch.Tensor:
         """
         Compute knowledge gain with neighbor.
         :param neighbor: Neighbor to compute KG with.

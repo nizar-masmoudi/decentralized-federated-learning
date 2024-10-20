@@ -139,14 +139,12 @@ class JSONLogger(Logger, ABC):
             obj['neighbors'] = [[{
                 'id': neighbor.id_,
                 'energy': client.communication_energy(neighbor),
-                'kg': client.knowledge_gain(neighbor).detach().numpy(),
                 'distance': cl.Client.distance(client, neighbor),
             } for neighbor in client.neighbors]]
         else:
             obj['neighbors'].append([{
                 'id': neighbor.id_,
                 'energy': client.communication_energy(neighbor),
-                'kg': client.knowledge_gain(neighbor).detach().numpy(),
                 'distance': cl.Client.distance(client, neighbor),
             } for neighbor in client.neighbors])
 
@@ -159,19 +157,18 @@ class JSONLogger(Logger, ABC):
         # Lookup client
         obj = next((item for item in self._json['clients'] if item['id'] == client.id_), None)
         assert obj is not None
-
         if 'peers' not in obj.keys():
             obj['peers'] = [[{
                 'id': peer.id_,
                 'energy': client.communication_energy(peer),
-                'kg': client.knowledge_gain(peer).detach().numpy(),
+                'kg': client.knowledge_gain(peer).item(),
                 'distance': cl.Client.distance(client, peer),
             } for peer in client.peers]]
         else:
             obj['peers'].append([{
                 'id': peer.id_,
                 'energy': client.communication_energy(peer),
-                'kg': client.knowledge_gain(peer).detach().numpy(),
+                'kg': client.knowledge_gain(peer).item(),
                 'distance': cl.Client.distance(client, peer),
             } for peer in client.peers])
 
